@@ -18,7 +18,7 @@ import { InputSystem } from './systems/InputSystem';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('#game canvas missing');
-
+// testing given the current viewport size, we can set the canvas size to match it
 const config = gameConfig;
 const bus = new EventBus<EventMap>();
 const state = new GameStateMachine();
