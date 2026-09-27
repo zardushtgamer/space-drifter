@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Keep in sync with PALETTE in src/config/gameConfig.ts (enforced by tests/palette.test.ts). */
+@theme {
+  --color-space: #05070d;
+  --color-player: #5ee7ff;
+  --color-boss: #ff4d6d;
+  --color-rock: #454b63;
+  --color-rock-stroke: #9aa0b8;
+  --color-good: #4ade80;
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
