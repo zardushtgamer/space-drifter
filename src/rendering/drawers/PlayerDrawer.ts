@@ -12,6 +12,7 @@ import type { Vec2 } from '../../core/types';
 import type { Entity } from '../../entities/Entity';
 import type { IDrawer, RenderView } from '../IRenderer';
 import { drawBall, drawEffect } from '../effects';
+import { drawCube } from '../tesseract';
 import { isFlashing } from './flash';
 
 /** Draws the player with the equipped ball skin, trail and effect. */
@@ -154,6 +155,24 @@ export class PlayerDrawer implements IDrawer {
     const skin = findTrail(this.save.trail);
     const n = this.trail.length;
     if (skin.style === 'none' || n < 2) return;
+    if (skin.style === 'cubes') {
+      // Spinning wireframe cubes dropped along the path, alternating colors, shrinking as they fade.
+      const cubeColors = skin.colors === 'ball' ? ['#5ee7ff'] : skin.colors;
+      for (let i = n - 2, k = 0; i >= 0; i -= 4, k++) {
+        const p = this.trail[i]!;
+        const age = 1 - i / (n - 1);
+        drawCube(
+          ctx,
+          p.x,
+          p.y,
+          radius * (1.2 - age * 0.6),
+          timeMs / 400 + i * 0.35,
+          resolveColor(cubeColors[k % cubeColors.length]!, timeMs),
+          (1 - age) * 0.85,
+        );
+      }
+      return;
+    }
     const colors: readonly CosmeticColor[] = skin.colors === 'ball' ? [ball.ring ?? ball.fill] : skin.colors;
     const colorAt = (t: number, i: number) =>
       resolveColor(colors[Math.min(colors.length - 1, Math.floor(t * colors.length))]!, timeMs, -i * 14);

@@ -1,5 +1,6 @@
 import { resolveColor, type BallPattern, type BallSkin } from '../config/cosmetics';
 import { mulberry32 } from '../core/random';
+import { drawTesseract } from './tesseract';
 
 /** Draws a ball skin; shared by the game and the shop previews. */
 export function drawBall(
@@ -12,6 +13,24 @@ export function drawBall(
   glowBlur: number,
   flash = false,
 ): void {
+  if (ball.shape === 'tesseract') {
+    // A glowing core inside a hypercube that keeps turning itself inside out.
+    ctx.save();
+    ctx.shadowColor = '#5ee7ff';
+    ctx.shadowBlur = glowBlur;
+    ctx.fillStyle = flash ? '#ffffff' : ball.fill;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    drawTesseract(ctx, x, y, r * 1.35, timeMs, {
+      outer: flash ? '#ffffff' : '#5ee7ff',
+      inner: flash ? '#ffffff' : '#e879f9',
+      lineWidth: Math.max(1, r * 0.09),
+      glow: '#5ee7ff',
+    });
+    return;
+  }
   const color = resolveColor(ball.fill, timeMs);
   ctx.save();
   ctx.shadowColor = ball.ring ?? color;
@@ -562,7 +581,29 @@ const fishschool: EffectFn = (ctx, r, t, layer) => {
   }
 };
 
+/** A big, slow hypercube surrounding the ball, with a faint 4D glow. */
+const hypercube: EffectFn = (ctx, r, t, layer) => {
+  if (layer !== 'under') return;
+  const glow = ctx.createRadialGradient(0, 0, r, 0, 0, r * 3);
+  glow.addColorStop(0, 'rgba(232, 121, 249, 0.25)');
+  glow.addColorStop(1, 'rgba(94, 231, 255, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 3, 0, TAU);
+  ctx.fill();
+  drawTesseract(
+    ctx,
+    0,
+    0,
+    r * 2.7,
+    t,
+    { outer: '#e879f9', inner: '#5ee7ff', lineWidth: Math.max(1, r * 0.08), glow: '#e879f9', alpha: 0.85 },
+    0.6,
+  );
+};
+
 const EFFECT_FNS: Readonly<Record<string, EffectFn>> = {
+  hypercube,
   spores,
   corona,
   fishschool,

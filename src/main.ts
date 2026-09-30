@@ -12,6 +12,7 @@ import { GasGiantSystem } from './systems/GasGiantSystem';
 import { SingularitySystem } from './systems/SingularitySystem';
 import { TrajectoryPredictor } from './systems/TrajectoryPredictor';
 import { RadarDrawer } from './rendering/drawers/RadarDrawer';
+import { DebugDrawer } from './rendering/drawers/DebugDrawer';
 import { AchievementSystem } from './systems/AchievementSystem';
 import { showAchievements, showAchievementToast } from './ui/achievements';
 import { GasGiantDrawer } from './rendering/drawers/GasGiantDrawer';
@@ -150,7 +151,10 @@ const renderer = new CanvasRenderer(
   drawers,
   {
     background: [new StarfieldDrawer(config, dimension), new AmbientDrawer(dimension, ambient, 'background')],
-    world: [new ProjectileDrawer(projectiles, config)],
+    world: [
+      new ProjectileDrawer(projectiles, config),
+      new DebugDrawer('world', save, registry, physics, player, dimension, timeScale, config),
+    ],
     foreground: [
       new CaveLightDrawer(player, dimension, config),
       new AmbientDrawer(dimension, ambient, 'foreground'),
@@ -159,6 +163,7 @@ const renderer = new CanvasRenderer(
       new LandmarkPointerDrawer(world, dimension, config),
       new GasGiantDrawer(world, gasGiant, config),
       new RadarDrawer(registry, player, world, () => save.upgradeLevel('radar'), config),
+      new DebugDrawer('hud', save, registry, physics, player, dimension, timeScale, config),
       dragIndicator, new HudDrawer(player, world, stats, save, config, dimension, levels)],
   },
   camera,

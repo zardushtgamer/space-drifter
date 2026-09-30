@@ -87,6 +87,20 @@ export class SaveData {
     return this.state.unlocked.includes(id);
   }
 
+  /** On/off switches (dev tools), stored alongside unlocks. */
+  flag(id: string): boolean {
+    return this.isUnlocked(`flag:${id}`);
+  }
+
+  setFlag(id: string, on: boolean): void {
+    const key = `flag:${id}`;
+    const has = this.isUnlocked(key);
+    if (on === has) return;
+    if (on) this.state.unlocked.push(key);
+    else this.state.unlocked = this.state.unlocked.filter((k) => k !== key);
+    this.save();
+  }
+
   /** Returns true if this call newly unlocked it. */
   unlock(id: string): boolean {
     if (this.isUnlocked(id)) return false;
@@ -148,6 +162,16 @@ export class SaveData {
     if (this.owns(id) || this.state.coins < price) return false;
     this.state.coins -= price;
     this.state.owned.push(id);
+    this.save();
+    return true;
+  }
+
+  /** Buys every listed item you don't own for one combined price. */
+  buyAll(ids: readonly string[], price: number): boolean {
+    const missing = ids.filter((id) => !this.owns(id));
+    if (missing.length === 0 || this.state.coins < price) return false;
+    this.state.coins -= price;
+    this.state.owned.push(...missing);
     this.save();
     return true;
   }

@@ -53,6 +53,16 @@ describe('SaveData', () => {
     expect(new SaveData(store).isUnlocked('andromeda')).toBe(true);
   });
 
+  it('toggles and persists on/off flags (dev tools)', () => {
+    const store = memoryStore();
+    const a = new SaveData(store);
+    expect(a.flag('dev-hitboxes')).toBe(false);
+    a.setFlag('dev-hitboxes', true);
+    expect(new SaveData(store).flag('dev-hitboxes')).toBe(true);
+    a.setFlag('dev-hitboxes', false);
+    expect(new SaveData(store).flag('dev-hitboxes')).toBe(false);
+  });
+
   it('survives corrupt or missing storage', () => {
     const store = memoryStore();
     store.data.set('space-drift:save:v1', '{not json');

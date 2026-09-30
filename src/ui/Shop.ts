@@ -1,6 +1,20 @@
 import { DIMENSION_IDS, DIMENSIONS, dimensionPassId, type DimensionId } from '../config/dimensions';
-import { BALLS, EFFECTS, findBall, TRAILS, type ShopItem, type BallSkin, type CosmeticColor, type TrailSkin } from '../config/cosmetics';
+import {
+  BALLS,
+  BUNDLES,
+  bundlePrice,
+  EFFECTS,
+  findBall,
+  itemPrice,
+  TRAILS,
+  type BallSkin,
+  type Bundle,
+  type CosmeticColor,
+  type ShopItem,
+  type TrailSkin,
+} from '../config/cosmetics';
 import { UPGRADES, upgradePrice, type UpgradeDef } from '../config/upgrades';
+import { DEV_TOOLS, devFlag, type DevToolDef, type DevToolId } from '../config/devTools';
 import type { SaveData, Slot } from '../core/SaveData';
 import { drawBall, drawEffect } from '../rendering/effects';
 
@@ -21,6 +35,11 @@ function trailPreview(t: TrailSkin): string {
     const dot = (a: number) =>
       `<div style="width:18px;height:18px;border-radius:50%;background:rgba(96,165,250,${a});border:1.5px solid rgba(191,219,254,${a});box-shadow:0 0 8px rgba(59,130,246,${a})"></div>`;
     return `<div class="flex items-center gap-1">${dot(0.2)}${dot(0.4)}${dot(0.7)}${dot(1)}${dot(0.3)}</div>`;
+  }
+  if (t.style === 'cubes') {
+    const cube = (a: number, color: string, deg: number) =>
+      `<div style="width:14px;height:14px;border:1.5px solid ${color};opacity:${a};transform:rotate(${deg}deg);box-shadow:0 0 6px ${color}"></div>`;
+    return `<div class="flex items-center gap-2">${cube(0.3, '#5ee7ff', 10)}${cube(0.55, '#e879f9', 35)}${cube(0.8, '#5ee7ff', 60)}${cube(1, '#e879f9', 20)}</div>`;
   }
   const colors = t.colors === 'ball' ? ['#5ee7ff'] : t.colors;
   const bg =
@@ -59,6 +78,25 @@ export class Shop {
       if (action === 'close') {
         this.close();
         onClose?.();
+        return;
+      }
+      if (action === 'buy-bundle' && id) {
+        const bundle = BUNDLES.find((b) => b.id === id);
+        if (bundle && this.save.buyAll(bundle.items.map((i) => i.id), bundlePrice(bundle, (x) => this.save.owns(x)))) {
+          for (const item of bundle.items) this.save.equip(item.slot, item.id);
+        }
+        this.render();
+        return;
+      }
+      if (action === 'equip-bundle' && id) {
+        const bundle = BUNDLES.find((b) => b.id === id);
+        for (const item of bundle?.items ?? []) this.save.equip(item.slot, item.id);
+        this.render();
+        return;
+      }
+      if (action === 'toggle-dev' && id) {
+        this.save.setFlag(devFlag(id as DevToolId), !this.save.flag(devFlag(id as DevToolId)));
+        this.render();
         return;
       }
       if (action === 'buy-upgrade' && id) {
@@ -100,6 +138,10 @@ export class Shop {
             <button data-action="close" class="rounded-full bg-white/10 px-4 py-1.5 hover:bg-white/20">Done</button>
           </div>
         </div>
+        <h3 class="mb-3 text-sm font-medium tracking-widest text-white/60">BUNDLES</h3>
+        <div class="mb-8 grid gap-3">
+          ${BUNDLES.map((b) => this.bundleCard(b)).join('')}
+        </div>
         <h3 class="mb-1 text-sm font-medium tracking-widest text-white/60">UPGRADES</h3>
         <p class="mb-3 text-xs text-white/40">Permanent. Take effect immediately (extra max HP from your next ship).</p>
         <div class="mb-8 grid gap-3 sm:grid-cols-2">
@@ -120,6 +162,11 @@ export class Shop {
         <h3 class="mb-3 text-sm font-medium tracking-widest text-white/60">EFFECTS</h3>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           ${EFFECTS.map((f) => this.card('effect', f, effectPreview(f.id))).join('')}
+        </div>
+        <h3 class="mb-1 mt-8 text-sm font-medium tracking-widest text-white/60">DEV TOOLS</h3>
+        <p class="mb-3 text-xs text-white/40">Free debug overlays for testing. Toggle any combination.</p>
+        <div class="grid gap-3 sm:grid-cols-2">
+          ${DEV_TOOLS.map((d) => this.devCard(d)).join('')}
         </div>
       </div>`;
     this.startPreviews();
@@ -163,6 +210,62 @@ export class Shop {
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);
+  }
+
+  /** Live previews of every item, the full vs. bundle price, and buy / equip-all. */
+  private bundleCard(b: Bundle): string {
+    const owns = (id: string) => this.save.owns(id);
+    const ownedAll = b.items.every((i) => owns(i.id));
+    const full = b.items.filter((i) => !owns(i.id)).reduce((s, i) => s + itemPrice(i.slot, i.id), 0);
+    const price = bundlePrice(b, owns);
+    const affordable = this.save.coins >= price;
+    const equipped = b.items.every((i) => this.save[i.slot] === i.id);
+    const previews = b.items
+      .map((i) => {
+        const canvas =
+          i.slot === 'ball' ? ballPreview(BALLS.find((x) => x.id === i.id)!)
+          : i.slot === 'effect' ? effectPreview(i.id)
+          : trailPreview(TRAILS.find((x) => x.id === i.id)!);
+        return `<div class="flex h-20 w-24 flex-col items-center justify-center gap-1">
+          ${canvas}<div class="text-[10px] uppercase tracking-wider text-white/50">${i.slot}</div></div>`;
+      })
+      .join('');
+    const action = ownedAll
+      ? equipped
+        ? `<div class="rounded-lg bg-good/20 px-4 py-1.5 text-good">Equipped</div>`
+        : `<button data-action="equip-bundle" data-id="${b.id}" class="rounded-lg bg-white/10 px-4 py-1.5 hover:bg-white/20">Equip all</button>`
+      : `<div class="flex flex-col items-end gap-1">
+           <span class="text-xs text-white/40 line-through">● ${full}</span>
+           <button data-action="buy-bundle" data-id="${b.id}" ${affordable ? '' : 'disabled'}
+             class="rounded-lg px-5 py-1.5 font-bold ${affordable ? 'bg-yellow-300 text-space hover:bg-yellow-200' : 'bg-white/5 text-white/30'}">● ${price}</button>
+         </div>`;
+    return `
+      <div class="rounded-xl border border-fuchsia-400/50 p-4" style="background:linear-gradient(135deg,rgba(232,121,249,0.12),rgba(94,231,255,0.08))">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="text-lg font-bold">${b.icon} ${b.name}
+              <span class="ml-1 rounded-full bg-fuchsia-500/30 px-2 text-xs text-fuchsia-200">−${Math.round((1 - b.priceFactor) * 100)}%</span>
+            </div>
+            <div class="text-sm text-white/60">${b.description}</div>
+          </div>
+          ${action}
+        </div>
+        <div class="mt-3 flex flex-wrap justify-center gap-3">${previews}</div>
+      </div>`;
+  }
+
+  private devCard(d: DevToolDef): string {
+    const on = this.save.flag(devFlag(d.id));
+    return `
+      <div class="flex items-center gap-3 rounded-xl border ${on ? 'border-good/60 bg-good/5' : 'border-white/10 bg-white/5'} p-3 font-mono">
+        <div class="text-2xl">${d.icon}</div>
+        <div class="flex-1">
+          <div class="font-bold">${d.name}</div>
+          <div class="text-xs text-white/60">${d.description}</div>
+        </div>
+        <button data-action="toggle-dev" data-id="${d.id}"
+          class="w-16 rounded-lg py-1.5 font-bold ${on ? 'bg-good text-space' : 'bg-white/10 hover:bg-white/20'}">${on ? 'ON' : 'OFF'}</button>
+      </div>`;
   }
 
   private upgradeCard(u: UpgradeDef): string {
