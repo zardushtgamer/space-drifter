@@ -1,25 +1,21 @@
 import Matter from 'matter-js';
-import type { GameConfig } from '../config/gameConfig';
 import type { IDisposable, Vec2 } from '../core/types';
 
-const { Bodies, Body, Composite, Engine, Events } = Matter;
+const { Body, Composite, Engine, Events } = Matter;
 
 export type CollisionEventName = 'collisionStart' | 'collisionActive' | 'collisionEnd';
 export type CollisionHandler = (pairs: readonly Matter.Pair[]) => void;
 
-const WALL_LABEL = 'wall';
-
 /**
- * Wraps the Matter engine. Owns walls and records pre-step velocities,
- * because Matter fires collision events after resolving them.
+ * Wraps the Matter engine and records pre-step velocities, because Matter
+ * fires collision events after resolving them. The world is unbounded.
  */
 export class PhysicsWorld implements IDisposable {
   readonly engine: Matter.Engine;
-  private walls: Matter.Body[] = [];
   private readonly preStepVelocity = new Map<number, Vec2>();
   private readonly subscriptions: Array<() => void> = [];
 
-  constructor(private readonly config: GameConfig) {
+  constructor() {
     this.engine = Engine.create({ gravity: { x: 0, y: 0, scale: 0 } });
     // Belt and braces: the spec wants all three zeroed explicitly.
     this.engine.gravity.x = 0;
@@ -64,42 +60,11 @@ export class PhysicsWorld implements IDisposable {
     return off;
   }
 
-  /** Rebuilds walls just outside the viewport and pulls stray bodies back inside. */
-  setBounds(width: number, height: number): void {
-    for (const wall of this.walls) Composite.remove(this.engine.world, wall);
-
-    const t = this.config.physics.wallThickness;
-    const opts: Matter.IChamferableBodyDefinition = {
-      isStatic: true,
-      label: WALL_LABEL,
-      restitution: this.config.physics.wallRestitution,
-      friction: 0,
-      frictionStatic: 0,
-      collisionFilter: { category: this.config.collision.wall },
-    };
-    this.walls = [
-      Bodies.rectangle(width / 2, -t / 2, width + 2 * t, t, opts),
-      Bodies.rectangle(width / 2, height + t / 2, width + 2 * t, t, opts),
-      Bodies.rectangle(-t / 2, height / 2, t, height + 2 * t, opts),
-      Bodies.rectangle(width + t / 2, height / 2, t, height + 2 * t, opts),
-    ];
-    Composite.add(this.engine.world, this.walls);
-
-    for (const body of Composite.allBodies(this.engine.world)) {
-      if (body.isStatic) continue;
-      const r = body.circleRadius ?? 0;
-      const x = Math.min(Math.max(body.position.x, r), Math.max(r, width - r));
-      const y = Math.min(Math.max(body.position.y, r), Math.max(r, height - r));
-      if (x !== body.position.x || y !== body.position.y) Body.setPosition(body, { x, y });
-    }
-  }
-
   dispose(): void {
     for (const off of this.subscriptions) off();
     this.subscriptions.length = 0;
     Composite.clear(this.engine.world, false, true);
     Engine.clear(this.engine);
-    this.walls = [];
     this.preStepVelocity.clear();
   }
 }

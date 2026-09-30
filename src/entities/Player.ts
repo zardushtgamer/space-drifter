@@ -4,6 +4,7 @@ import type { Entity } from './Entity';
 
 export class Player implements Entity {
   readonly kind = 'player' as const;
+  hitAtMs?: number;
 
   constructor(
     readonly body: Matter.Body,

@@ -4,13 +4,26 @@ export type HealthChange = (hp: number, maxHp: number) => void;
 
 export class Health implements IDamageable {
   private current: number;
+  private max: number;
 
   constructor(
-    readonly maxHp: number,
+    maxHp: number,
     private readonly onChange?: HealthChange,
   ) {
     if (!(maxHp > 0)) throw new Error('maxHp must be positive');
+    this.max = maxHp;
     this.current = maxHp;
+  }
+
+  get maxHp(): number {
+    return this.max;
+  }
+
+  /** Raises (or lowers) max HP; current HP is clamped to it. */
+  setMaxHp(value: number): void {
+    if (!(value > 0)) throw new Error('maxHp must be positive');
+    this.max = value;
+    this.set(this.current);
   }
 
   get hp(): number {

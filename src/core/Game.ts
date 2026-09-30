@@ -4,6 +4,7 @@ import type { IRenderer } from '../rendering/IRenderer';
 import type { ISystem } from '../systems/ISystem';
 import type { IClock } from './Clock';
 import type { GameStateMachine } from './GameStateMachine';
+import type { TimeScale } from './TimeScale';
 import type { IDisposable } from './types';
 import type { Viewport } from './Viewport';
 
@@ -15,6 +16,7 @@ export interface GameDeps {
   viewport: Viewport;
   clock: IClock;
   config: GameConfig;
+  timeScale?: TimeScale;
 }
 
 /** Fixed-timestep physics + systems, rendering on requestAnimationFrame. */
@@ -27,11 +29,8 @@ export class Game implements IDisposable {
   constructor(private readonly deps: GameDeps) {}
 
   start(): void {
-    const { physics, renderer, viewport, clock } = this.deps;
-    this.offResize = viewport.onResize((w, h) => {
-      physics.setBounds(w, h);
-      renderer.resize(w, h);
-    });
+    const { renderer, viewport, clock } = this.deps;
+    this.offResize = viewport.onResize((w, h) => renderer.resize(w, h));
     this.lastMs = clock.now();
     this.rafId = requestAnimationFrame(this.frame);
   }
@@ -40,7 +39,8 @@ export class Game implements IDisposable {
     const { physics, renderer, systems, state, clock, config } = this.deps;
     const { stepMs, maxStepsPerFrame } = config.physics;
     const now = clock.now();
-    this.accumulatorMs += now - this.lastMs;
+    // Slow motion (time dilation) feeds the simulation less real time per frame.
+    this.accumulatorMs += (now - this.lastMs) * (this.deps.timeScale?.value ?? 1);
     this.lastMs = now;
 
     let steps = 0;

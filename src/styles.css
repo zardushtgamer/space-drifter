@@ -8,6 +8,10 @@
   --color-rock: #454b63;
   --color-rock-stroke: #9aa0b8;
   --color-good: #4ade80;
+  --color-enemy: #ffb020;
+  --color-brute: #c084fc;
+  --color-mine: #ff3b3b;
+  --color-bullet: #ffd6e0;
 
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
 }

@@ -1,8 +1,9 @@
-export type GameState = 'menu' | 'playing' | 'won' | 'lost';
+export type GameState = 'menu' | 'playing' | 'paused' | 'won' | 'lost';
 
 const TRANSITIONS: Readonly<Record<GameState, readonly GameState[]>> = {
   menu: ['playing'],
-  playing: ['won', 'lost'],
+  playing: ['paused', 'won', 'lost'],
+  paused: ['playing'],
   won: ['playing'],
   lost: ['playing'],
 };

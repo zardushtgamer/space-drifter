@@ -1,4 +1,5 @@
 import Matter from 'matter-js';
+import type { DimensionState } from '../config/dimensions';
 import type { GameConfig } from '../config/gameConfig';
 import type { EventBus } from '../core/EventBus';
 import type { EventMap } from '../core/events';
@@ -21,6 +22,9 @@ export class InputSystem implements ISystem {
     private readonly state: GameStateMachine,
     private readonly bus: EventBus<EventMap>,
     private readonly config: GameConfig,
+    private readonly dimension?: DimensionState,
+    /** Thrusters upgrade multiplier, read live. */
+    private readonly launchPower: () => number = () => 1,
   ) {
     canvas.addEventListener('pointerdown', this.onDown);
     canvas.addEventListener('pointermove', this.onMove);
@@ -28,7 +32,20 @@ export class InputSystem implements ISystem {
     canvas.addEventListener('pointercancel', this.onCancel);
   }
 
-  update(): void {}
+  /** Launch power / top-speed multiplier: the dimension's, times the Thrusters upgrade. */
+  private get speedScale(): number {
+    return (this.dimension?.theme.playerSpeedScale ?? 1) * this.launchPower();
+  }
+
+  /** In slow dimensions, cap the player's speed so nothing (gravity, bounces) flings it past the limit. */
+  update(): void {
+    if ((this.dimension?.theme.playerSpeedScale ?? 1) >= 1) return;
+    const scale = this.speedScale;
+    const max = this.config.launch.maxSpeed * scale;
+    const v = this.player.body.velocity;
+    const speed = Math.hypot(v.x, v.y);
+    if (speed > max) Body.setVelocity(this.player.body, { x: (v.x / speed) * max, y: (v.y / speed) * max });
+  }
 
   private onDown = (e: PointerEvent): void => {
     if (this.pointerId !== null || !this.state.is('playing')) return;
@@ -48,12 +65,13 @@ export class InputSystem implements ISystem {
     if (e.pointerId !== this.pointerId) return;
     if (this.state.is('playing')) {
       const body = this.player.body;
-      const { velocity, force } = computeLaunch(
-        Body.getVelocity(body),
-        this.from,
-        this.toLocal(e),
-        this.config.launch,
-      );
+      const l = this.config.launch;
+      const scale = this.speedScale;
+      const { velocity, force } = computeLaunch(Body.getVelocity(body), this.from, this.toLocal(e), {
+        maxDrag: l.maxDrag,
+        forceScale: l.forceScale * scale,
+        maxSpeed: l.maxSpeed * scale,
+      });
       if (force > 0) {
         Body.setVelocity(body, velocity);
         this.bus.emit('player:launched', { force });

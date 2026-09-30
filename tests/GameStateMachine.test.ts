@@ -26,6 +26,15 @@ describe('GameStateMachine', () => {
     expect(m.state).toBe('lost');
   });
 
+  it('pauses and resumes only from playing', () => {
+    const m = new GameStateMachine();
+    expect(m.transition('paused')).toBe(false);
+    m.transition('playing');
+    expect(m.transition('paused')).toBe(true);
+    expect(m.transition('lost')).toBe(false);
+    expect(m.transition('playing')).toBe(true);
+  });
+
   it('notifies listeners with to/from and supports unsubscribe', () => {
     const m = new GameStateMachine();
     const fn = vi.fn();

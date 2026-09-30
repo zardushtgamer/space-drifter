@@ -22,11 +22,12 @@ export class DragIndicatorDrawer implements ILayerDrawer, IDisposable {
     ];
   }
 
-  draw({ ctx }: RenderView): void {
+  draw({ ctx, camera }: RenderView): void {
     if (!this.drag) return;
     const fx = this.config.effects;
     const { from, to } = this.drag;
-    const p = this.player.body.position;
+    // Drag points are screen-space; the player is in world space.
+    const p = { x: this.player.body.position.x - camera.x, y: this.player.body.position.y - camera.y };
 
     ctx.save();
     ctx.globalAlpha = fx.dragOriginAlpha;
