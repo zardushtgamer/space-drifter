@@ -57,6 +57,7 @@ describe('cosmetics catalog', () => {
       expect(BALLS.some((b) => b.theme === id)).toBe(true);
       expect(TRAILS.some((t) => t.theme === id)).toBe(true);
       expect(EFFECTS.some((e) => e.theme === id)).toBe(true);
+      expect(KILL_EFFECTS.some((k) => k.theme === id)).toBe(true);
     }
   });
 
@@ -72,6 +73,10 @@ describe('cosmetics catalog', () => {
     const ball = b.items.find((i) => i.slot === 'ball')!;
     expect(bundlePrice(b, (id) => id === ball.id)).toBe(Math.round((full - itemPrice('ball', ball.id)) * b.priceFactor));
     expect(bundlePrice(b, () => true)).toBe(0);
+  });
+
+  it('gives every bundle a kill effect', () => {
+    for (const b of BUNDLES) expect(b.items.some((i) => i.slot === 'kill')).toBe(true);
   });
 
   it('only bundles items that exist', () => {

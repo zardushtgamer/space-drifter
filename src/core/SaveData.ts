@@ -165,10 +165,16 @@ export class SaveData {
     const level = this.upgradeLevel(def.id);
     const price = upgradePrice(def, level);
     if (level >= def.maxLevel || this.state.coins < price) return false;
+    if (!this.meetsRequirements(def)) return false;
     this.state.coins -= price;
     this.state.upgrades[def.id] = level + 1;
     this.save();
     return true;
+  }
+
+  /** Whether every upgrade `def` requires is owned. */
+  meetsRequirements(def: UpgradeDef): boolean {
+    return (def.requires ?? []).every((id) => this.upgradeLevel(id) > 0);
   }
 
   modifiers(): Modifiers {

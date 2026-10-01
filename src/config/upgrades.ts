@@ -9,7 +9,9 @@ export type UpgradeId =
   | 'regen'
   | 'lucky'
   | 'singularity'
-  | 'radar';
+  | 'radar'
+  | 'infinity'
+  | 'supernova';
 
 export interface UpgradeDef {
   readonly id: UpgradeId;
@@ -20,6 +22,8 @@ export interface UpgradeDef {
   readonly maxLevel: number;
   /** Cost of level n (1-based) is basePrice * n. */
   readonly basePrice: number;
+  /** Upgrades you must own (level ≥ 1) before buying this one. */
+  readonly requires?: readonly UpgradeId[];
 }
 
 export const UPGRADES: readonly UpgradeDef[] = [
@@ -46,7 +50,77 @@ export const UPGRADES: readonly UpgradeDef[] = [
     maxLevel: 2,
     basePrice: 400,
   },
+  {
+    id: 'infinity',
+    name: 'Infinity',
+    icon: '♾️',
+    perLevel: 'enemies and bullets slow the closer they get, stopping dead before they touch you (I to toggle). Wider field',
+    maxLevel: 3,
+    basePrice: 700,
+  },
+  {
+    id: 'supernova',
+    name: 'Supernova',
+    icon: '💥',
+    perLevel: 'with Infinity + Singularity both on, press N to collapse them into a blast. More damage, knockback, reach and spectacle',
+    maxLevel: 5,
+    basePrice: 900,
+    requires: ['infinity', 'singularity'],
+  },
 ];
+
+/** Supernova strength at a given upgrade level (0 = not owned). */
+export function supernovaStats(level: number): {
+  radius: number;
+  damage: number;
+  knockback: number;
+  cooldownMs: number;
+  chargeMs: number;
+  /** Visual tier: more rings, rays, particles and a harder flash at higher levels. */
+  vfx: number;
+} {
+  return {
+    /** Blast radius, px. */
+    radius: 320 + 90 * level,
+    /** Damage at the center (falls to half at the edge). */
+    damage: 30 + 30 * level,
+    /** Outward speed given to everything caught, px/step (also falls off). */
+    knockback: 9 + 4 * level,
+    cooldownMs: Math.max(6000, 13_000 - 1300 * level),
+    chargeMs: 650,
+    vfx: level,
+  };
+}
+
+/** Infinity field at a given upgrade level (0 = not owned). */
+export function infinityStats(level: number): { range: number; maxApproach: number } {
+  return {
+    /** Gap (hitbox edge to hitbox edge, px) where slowing starts. */
+    range: 60 + 50 * level,
+    /** Max approach speed at the edge of the field, px/step; falls linearly to 0 at contact. */
+    maxApproach: 6,
+  };
+}
+
+/**
+ * Infinity stops things with their hitbox this far (px) from yours: a hair's breadth,
+ * with enough margin that crowd shoving can't push them into contact.
+ */
+export const INFINITY_STOP_GAP = 8;
+/** Slowest creep inside the field (fraction of maxApproach), so things actually arrive. */
+const INFINITY_MIN_CREEP = 0.12;
+
+/**
+ * Max speed (px/step) something may close in at, given the gap between hitboxes.
+ * Full speed outside the field, slowing linearly toward a gentle creep, and never
+ * more than the remaining gap, so it ends exactly at INFINITY_STOP_GAP: just
+ * barely touching, with zero speed.
+ */
+export function infinityApproachCap(gap: number, range: number, maxApproach: number): number {
+  if (gap >= range) return Infinity;
+  const curve = maxApproach * Math.max(INFINITY_MIN_CREEP, gap / range);
+  return Math.max(0, Math.min(curve, gap - INFINITY_STOP_GAP));
+}
 
 /** Singularity strength at a given upgrade level (0 = not owned). */
 export function singularityStats(level: number): {

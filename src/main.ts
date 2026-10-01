@@ -14,6 +14,13 @@ import { TrajectoryPredictor } from './systems/TrajectoryPredictor';
 import { RadarDrawer } from './rendering/drawers/RadarDrawer';
 import { DebugDrawer } from './rendering/drawers/DebugDrawer';
 import { KillFxDrawer } from './rendering/drawers/KillFxDrawer';
+import { InfinitySystem } from './systems/InfinitySystem';
+import { InfinityDrawer } from './rendering/drawers/InfinityDrawer';
+import { SupernovaSystem } from './systems/SupernovaSystem';
+import { SupernovaDrawer } from './rendering/drawers/SupernovaDrawer';
+import { ArenaSystem } from './systems/ArenaSystem';
+import { BotDrawer } from './rendering/drawers/BotDrawer';
+import { ArenaHudDrawer } from './rendering/drawers/ArenaHudDrawer';
 import { AchievementSystem } from './systems/AchievementSystem';
 import { showAchievements, showAchievementToast } from './ui/achievements';
 import { GasGiantDrawer } from './rendering/drawers/GasGiantDrawer';
@@ -55,6 +62,8 @@ import { WorldSystem } from './systems/WorldSystem';
 import {
   consumeAutostart,
   setAchievementsOpener,
+  showArenaResults,
+  type GameMode,
   showGameOver,
   showLevelUp,
   showPauseMenu,
@@ -128,6 +137,7 @@ const landmarks = new LandmarkSystem(
 );
 const ambient = new AmbientSystem(registry, player, dimension, config);
 const gasGiant = new GasGiantSystem(world, registry, player, combat, config);
+const infinity = new InfinitySystem(registry, player, projectiles, () => save.upgradeLevel('infinity'));
 const singularity = new SingularitySystem(
   registry, player, combat, projectiles, () => save.upgradeLevel('singularity'), () => stats.swallowed++,
 );
@@ -137,6 +147,25 @@ const achievements = new AchievementSystem(
 );
 setAchievementsOpener((onClose) => showAchievements(ui, save, achievements.context(), onClose));
 
+// Infinity + Singularity collapsed together (press N).
+const supernova = new SupernovaSystem(
+  registry, player, combat, projectiles, infinity, singularity, camera, clock, stats,
+  () => save.upgradeLevel('supernova'),
+);
+combat.contactShield = () => infinity.enabled;
+
+// Multiplayer (Bots): you vs. AI pilots, free-for-all.
+const arena = new ArenaSystem(
+  registry, factory, physics, player, combat, bus, camera, viewport, stats, clock, config, save,
+  () => mods().ramDamage,
+);
+combat.onPlayerDeath = () => arena.playerKOd();
+arena.onEnd = (result) => {
+  state.transition('lost');
+  pauseButton.classList.add('hidden');
+  showArenaResults(ui, result, save);
+};
+
 // Simulates your drift for the Afterimage trail's look-ahead ghosts.
 const predictor = new TrajectoryPredictor(gravity, gasGiant, ton618, landmarks, ambient, dimension, config);
 
@@ -145,7 +174,10 @@ const drawers = new DrawerRegistry()
   .register('player', new PlayerDrawer(config, save, singularity, predictor))
   .register('enemy', new EnemyDrawer(config))
   .register('boss', new BossDrawer(config))
-  .register('obstacle', new ObstacleDrawer(config, dimension, new LandmarkArt(landmarks)));
+  .register('obstacle', new ObstacleDrawer(config, dimension, new LandmarkArt(landmarks)))
+  .register('bot', new BotDrawer(config));
+const hud = new HudDrawer(player, world, stats, save, config, dimension, levels);
+hud.showRound = () => !arena.active;
 const renderer = new CanvasRenderer(
   canvas,
   registry,
@@ -155,6 +187,8 @@ const renderer = new CanvasRenderer(
     world: [
       new ProjectileDrawer(projectiles, config),
       new KillFxDrawer(bus, save),
+      new InfinityDrawer(infinity, registry, player),
+      new SupernovaDrawer(supernova, player, 'world'),
       new DebugDrawer('world', save, registry, physics, player, dimension, timeScale, config),
     ],
     foreground: [
@@ -165,8 +199,12 @@ const renderer = new CanvasRenderer(
       new LandmarkPointerDrawer(world, dimension, config),
       new GasGiantDrawer(world, gasGiant, config),
       new RadarDrawer(registry, player, world, () => save.upgradeLevel('radar'), config),
+      new SupernovaDrawer(supernova, player, 'screen'),
       new DebugDrawer('hud', save, registry, physics, player, dimension, timeScale, config),
-      dragIndicator, new HudDrawer(player, world, stats, save, config, dimension, levels)],
+      dragIndicator,
+      hud,
+      new ArenaHudDrawer(arena),
+    ],
   },
   camera,
   config,
@@ -185,6 +223,10 @@ const systems = [
   gasGiant,
   // Before projectiles, so bullets are swallowed before they can hit.
   singularity,
+  // After every system that sets enemy velocity, and before bullets move: Infinity has the last word.
+  infinity,
+  supernova,
+  arena,
   projectiles,
   combat,
   world,
@@ -279,6 +321,18 @@ bus.on('level:up', ({ level }) => {
 
 window.addEventListener('keydown', (e) => {
   if (choosingPerk) return;
+  if (e.key.toLowerCase() === 'n' && state.is('playing') && supernova.level() > 0) {
+    supernova.activate();
+    return;
+  }
+  if (e.key.toLowerCase() === 'i' && state.is('playing') && infinity.level() > 0) {
+    infinity.active = !infinity.active;
+    stats.banner = {
+      text: infinity.active ? `INFINITY ON · LV ${infinity.level()}` : 'INFINITY OFF',
+      untilMs: clock.now() + 1500,
+    };
+    return;
+  }
   if (e.key.toLowerCase() === 'b' && state.is('playing') && singularity.level() > 0) {
     singularity.active = !singularity.active;
     stats.banner = {
@@ -296,10 +350,16 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && state.is('playing') && !choosingPerk) pause();
 });
 
-const play = () => {
+const play = (mode: GameMode) => {
+  if (mode === 'arena') {
+    // Pure PvP: no enemy waves or bosses.
+    world.wavesEnabled = false;
+    arena.start();
+  }
   state.transition('playing');
   pauseButton.classList.remove('hidden');
   bus.emit('game:started');
 };
-if (consumeAutostart()) play();
+const autostart = consumeAutostart();
+if (autostart) play(autostart);
 else showStartMenu(ui, save, shop, play);

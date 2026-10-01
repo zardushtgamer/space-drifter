@@ -21,6 +21,9 @@ export class HudDrawer implements ILayerDrawer {
     private readonly levels?: RunLevels,
   ) {}
 
+  /** Whether to show the ROUND counter (off in Multiplayer). */
+  showRound: () => boolean = () => true;
+
   /** Current speed in Mach, plus this run's best. Glows hotter past Mach 2 and 3. */
   private drawMach(ctx: CanvasRenderingContext2D): void {
     const v = this.player.body.velocity;
@@ -72,12 +75,12 @@ export class HudDrawer implements ILayerDrawer {
     ctx.fillText(`${this.stats.kills} kills · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, width - 16, 40);
     ctx.fillText(`${Math.floor(this.stats.farthest / this.config.economy.pxPerLy)} ly from home`, width - 16, 58);
 
-    // Round (below the pause button)
+    // Round (below the pause button); hidden in Multiplayer, which shows its own timer there.
     ctx.textAlign = 'center';
     ctx.font = `700 16px ${FONT}`;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`ROUND ${this.stats.round}`, width / 2, 50);
-    if (this.stats.enemiesLeft > 0) {
+    if (this.showRound()) ctx.fillText(`ROUND ${this.stats.round}`, width / 2, 50);
+    if (this.showRound() && this.stats.enemiesLeft > 0) {
       ctx.font = `500 13px ${FONT}`;
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fillText(`${this.stats.enemiesLeft} enemies left`, width / 2, 70);

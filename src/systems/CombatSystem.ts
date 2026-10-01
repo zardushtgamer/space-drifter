@@ -29,6 +29,10 @@ export class CombatSystem implements ISystem {
   private timeMs = 0;
   private lastHurtMs = -Infinity;
   private invulnUntilMs = 0;
+  /** When true, enemy contact deals no damage (the Infinity upgrade). */
+  contactShield: () => boolean = () => false;
+  /** Return true to handle the player's death yourself (arena respawn) instead of ending the run. */
+  onPlayerDeath: () => boolean = () => false;
   /** Entity id -> time of the player's last successful ram on it. */
   private readonly lastRamMs = new Map<number, number>();
   private readonly unsubs: Array<() => void>;
@@ -66,6 +70,15 @@ export class CombatSystem implements ISystem {
     if (!this.state.is('playing')) return;
     this.player.health.damage(this.player.health.maxHp);
     this.camera.shake(this.config.effects.shakeMs * 3, this.config.effects.shakeMagnitude * 3);
+    this.playerDied();
+  }
+
+  /**
+   * Called when the player's HP hits 0. Arena mode handles it (respawn) via
+   * `onPlayerDeath`; otherwise the run ends.
+   */
+  private playerDied(): void {
+    if (this.onPlayerDeath()) return;
     if (this.state.transition('lost')) this.bus.emit('game:lost', { timeMs: this.stats.elapsedMs });
   }
 
@@ -78,9 +91,7 @@ export class CombatSystem implements ISystem {
     this.player.hitAtMs = this.clock.now();
     const fx = this.config.effects;
     this.camera.shake(fx.shakeMs, fx.shakeMagnitude);
-    if (this.player.health.isDead() && this.state.transition('lost')) {
-      this.bus.emit('game:lost', { timeMs: this.stats.elapsedMs });
-    }
+    if (this.player.health.isDead()) this.playerDied();
   };
 
   private onPairs(pairs: readonly Matter.Pair[], started: boolean): void {
@@ -135,6 +146,8 @@ export class CombatSystem implements ISystem {
       }
     }
     if (recentlyRammed) return;
+    // Infinity: nothing touching you can hurt you (ramming above still works).
+    if (this.contactShield()) return;
     const dmg = other instanceof Boss ? this.config.boss.contactDamage : other.stats.contactDamage;
     this.hurtPlayer(dmg);
   }

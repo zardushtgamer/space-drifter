@@ -338,8 +338,13 @@ export class Shop {
       { length: u.maxLevel },
       (_, i) => `<span class="inline-block h-2 w-5 rounded-full ${i < level ? 'bg-good' : 'bg-white/15'}"></span>`,
     ).join('');
+    const missing = (u.requires ?? []).filter((id) => this.save.upgradeLevel(id) <= 0);
     const button = maxed
       ? `<div class="rounded-lg bg-good/20 px-3 py-1.5 text-sm text-good">MAX</div>`
+      : missing.length > 0
+      ? `<div class="max-w-[9rem] rounded-lg bg-white/5 px-3 py-1.5 text-center text-xs text-white/50">🔒 needs ${missing
+          .map((id) => UPGRADES.find((x) => x.id === id)?.name ?? id)
+          .join(' + ')}</div>`
       : `<button data-action="buy-upgrade" data-id="${u.id}" ${affordable ? '' : 'disabled'}
            class="rounded-lg px-4 py-1.5 font-bold ${affordable ? 'bg-yellow-300 text-space hover:bg-yellow-200' : 'bg-white/5 text-white/30'}">● ${price}</button>`;
     return `

@@ -34,6 +34,8 @@ export class WorldSystem implements ISystem {
   private readonly enemies = new Set<Enemy>();
   private boss: Boss | null = null;
   private phase: 'intermission' | 'wave' | 'boss' = 'intermission';
+  /** Enemy rounds and bosses. Off in Multiplayer (Bots). */
+  wavesEnabled = true;
   private phaseTimerMs: number;
   /** Enemies of the current wave not yet spawned. */
   private toSpawn = 0;
@@ -200,7 +202,7 @@ export class WorldSystem implements ISystem {
     this.sweep();
     this.streamChunks();
     this.leash();
-    this.updateRound(dtMs);
+    if (this.wavesEnabled) this.updateRound(dtMs);
   }
 
   // --- chunks -------------------------------------------------------------

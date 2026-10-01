@@ -47,23 +47,80 @@ function wireButtons(el: HTMLElement, save: SaveData, shop: Shop, onPlay: () => 
   });
 }
 
-export function showStartMenu(container: HTMLElement, save: SaveData, shop: Shop, onPlay: () => void): void {
+export type GameMode = 'solo' | 'arena';
+
+export function showStartMenu(
+  container: HTMLElement,
+  save: SaveData,
+  shop: Shop,
+  onPlay: (mode: GameMode) => void,
+): void {
   const el = overlay(
     container,
     `<div class="text-6xl font-bold text-player">SPACE DRIFT</div>
      <div class="text-white/70">Drag to launch. Ram enemies at speed. Avoid mines. Grab green crosses to heal.</div>
      <div class="text-white/70">Every light-year you travel from home pays 5 coins.</div>
      <div class="font-bold text-yellow-300">● <span data-coins>${save.coins}</span> coins</div>
-     <div class="mt-4 flex gap-3">
+     <div class="mt-4 flex flex-wrap justify-center gap-3">
        <button data-play class="${PRIMARY}">Play</button>
+       <button data-arena class="${BTN} bg-rose-500 text-white hover:brightness-110">⚔️ Multiplayer (Bots)</button>
        <button data-shop class="${SECONDARY}">Shop</button>
        ${ACH_BUTTON}
      </div>`,
   );
   wireButtons(el, save, shop, () => {
     el.remove();
-    onPlay();
+    onPlay('solo');
   });
+  el.querySelector('[data-arena]')?.addEventListener('click', () => {
+    el.remove();
+    onPlay('arena');
+  });
+}
+
+/** End of a Multiplayer (Bots) match: final standings, your place, coins. */
+export function showArenaResults(
+  container: HTMLElement,
+  result: { standings: ReadonlyArray<{ name: string; color: string; kos: number; deaths: number; isPlayer: boolean }>; place: number; coins: number },
+  save: SaveData,
+): void {
+  const medal = ['🥇', '🥈', '🥉'][result.place - 1] ?? '';
+  const rows = result.standings
+    .map(
+      (s, i) => `
+      <div class="flex justify-between gap-6 rounded-lg px-3 py-1 ${s.isPlayer ? 'bg-player/15 font-bold' : ''}">
+        <span style="color:${s.color}">${i + 1}. ${s.name}</span>
+        <span>${s.kos} KO · ${s.deaths} deaths</span>
+      </div>`,
+    )
+    .join('');
+  const el = overlay(
+    container,
+    `<div class="text-sm font-bold tracking-[0.3em] text-rose-300">MATCH OVER</div>
+     <div class="text-5xl font-bold">${medal} ${ordinal(result.place)} place</div>
+     <div class="w-full max-w-sm">${rows}</div>
+     <div class="font-bold text-yellow-300">+${result.coins} coins · ● ${save.coins}</div>
+     <div class="mt-4 flex gap-3">
+       <button data-again class="${PRIMARY}">Fight again</button>
+       <button data-menu class="${SECONDARY}">Menu</button>
+     </div>`,
+  );
+  el.querySelector('[data-again]')?.addEventListener('click', () => restartInto('arena'));
+  el.querySelector('[data-menu]')?.addEventListener('click', () => location.reload());
+}
+
+function ordinal(n: number): string {
+  return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
+}
+
+/** Reloads straight into a mode, skipping the start menu. */
+function restartInto(mode: GameMode): void {
+  try {
+    sessionStorage.setItem('space-drift:autostart', mode);
+  } catch {
+    // Ignore: the start menu just shows again.
+  }
+  location.reload();
 }
 
 export interface PauseMenu {
@@ -161,15 +218,8 @@ export function showGameOver(
        ${ACH_BUTTON}
      </div>`,
   );
-  wireButtons(el, save, shop, () => {
-    // Skip the start menu on a quick restart.
-    try {
-      sessionStorage.setItem('space-drift:autostart', '1');
-    } catch {
-      // Ignore: the start menu just shows again.
-    }
-    location.reload();
-  });
+  // Skip the start menu on a quick restart.
+  wireButtons(el, save, shop, () => restartInto('solo'));
 }
 
 /** Level-up overlay: pick one of the offered perks (click, or press 1–3). */
@@ -219,13 +269,14 @@ export function showLevelUp(
   }
 }
 
-/** True once, right after "Drift again". */
-export function consumeAutostart(): boolean {
+/** The mode to jump straight into, once, right after "Drift again" / "Fight again". */
+export function consumeAutostart(): GameMode | null {
   try {
-    const v = sessionStorage.getItem('space-drift:autostart') === '1';
+    const v = sessionStorage.getItem('space-drift:autostart');
     sessionStorage.removeItem('space-drift:autostart');
-    return v;
+    // '1' is the old solo value.
+    return v === 'arena' ? 'arena' : v === 'solo' || v === '1' ? 'solo' : null;
   } catch {
-    return false;
+    return null;
   }
 }

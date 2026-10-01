@@ -1,7 +1,7 @@
 import type Matter from 'matter-js';
 import type { IUpdatable } from '../core/types';
 
-export type EntityKind = 'player' | 'enemy' | 'boss' | 'obstacle';
+export type EntityKind = 'player' | 'enemy' | 'boss' | 'obstacle' | 'bot';
 
 export interface Entity extends Partial<IUpdatable> {
   readonly id: number;

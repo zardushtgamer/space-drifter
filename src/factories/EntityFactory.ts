@@ -6,6 +6,7 @@ import type { EventBus } from '../core/EventBus';
 import type { EventMap } from '../core/events';
 import type { Vec2 } from '../core/types';
 import { Boss, type FireFn } from '../entities/Boss';
+import { Bot, type BotProfile } from '../entities/Bot';
 import { Enemy, type EnemyType } from '../entities/Enemy';
 import type { Entity } from '../entities/Entity';
 import type { EntityRegistry } from '../entities/EntityRegistry';
@@ -37,6 +38,21 @@ export class EntityFactory {
     });
     const health = new Health(c.maxHp + maxHpBonus, (hp, maxHp) => this.bus.emit('player:damaged', { hp, maxHp }));
     return this.register(new Player(body, health));
+  }
+
+  /** A bot pilot: same body as the player. */
+  createBot(position: Vec2, profile: BotProfile): Bot {
+    const c = this.config.player;
+    const body = Bodies.circle(position.x, position.y, c.radius, {
+      label: 'bot',
+      density: c.density,
+      frictionAir: c.frictionAir,
+      restitution: c.restitution,
+      friction: c.friction,
+      frictionStatic: c.frictionStatic,
+      collisionFilter: { category: this.config.collision.player },
+    });
+    return this.register(new Bot(body, new Health(c.maxHp), profile));
   }
 
   createEnemy(position: Vec2, type: EnemyType, target: Entity, fire: FireFn | null = null): Enemy {
