@@ -1,4 +1,4 @@
-import { findBall, findTrail, MATH_SYMBOLS, resolveColor, type BallSkin, type CosmeticColor } from '../../config/cosmetics';
+import { findBall, findTrail, resolveColor, type BallSkin, type CosmeticColor } from '../../config/cosmetics';
 import type { GameConfig } from '../../config/gameConfig';
 import { singularityStats } from '../../config/upgrades';
 import type { SingularitySystem } from '../../systems/SingularitySystem';
@@ -158,10 +158,42 @@ export class PlayerDrawer implements IDrawer {
     const skin = findTrail(this.save.trail);
     const n = this.trail.length;
     if (skin.style === 'none' || n < 2) return;
-    if (skin.style === 'equations') {
-      // Chalk symbols dropped every few points. Each is keyed to the frame it was
+    if (skin.style === 'feathers') {
+      // Glowing feathers shed along the path, each angled along the direction of travel.
+      const tones = skin.colors === 'ball' ? ['#f97316'] : skin.colors;
+      for (let i = 1; i < n - 1; i++) {
+        const id = this.pushes - (n - 1 - i);
+        if (id % 3 !== 0) continue;
+        const a = this.trail[i - 1]!;
+        const p = this.trail[i]!;
+        const age = 1 - i / (n - 1);
+        const len = radius * (1.1 - age * 0.5);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.atan2(p.y - a.y, p.x - a.x) + Math.sin(id * 2.3) * 0.6);
+        ctx.globalAlpha = (1 - age) * 0.9;
+        const color = resolveColor(tones[(id / 3) % tones.length]!, timeMs);
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, len, len * 0.32, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 247, 200, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-len, 0);
+        ctx.lineTo(len, 0);
+        ctx.stroke();
+        ctx.restore();
+      }
+      return;
+    }
+    if (skin.style === 'glyphs') {
+      // Text dropped every few points. Each glyph is keyed to the frame it was
       // dropped on, so it keeps its symbol and tilt as the trail scrolls.
       const chalk = skin.colors === 'ball' ? ['#f8fafc'] : skin.colors;
+      const glyphs = skin.glyphs ?? ['•'];
       ctx.save();
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -176,7 +208,7 @@ export class PlayerDrawer implements IDrawer {
         ctx.globalAlpha = (1 - age) * 0.9;
         ctx.fillStyle = resolveColor(chalk[(id / 5) % chalk.length]!, timeMs);
         ctx.font = `600 ${Math.round(radius * (1.3 - age * 0.5))}px "Space Grotesk", serif`;
-        ctx.fillText(MATH_SYMBOLS[(id / 5) % MATH_SYMBOLS.length]!, 0, 0);
+        ctx.fillText(glyphs[(id / 5) % glyphs.length]!, 0, 0);
         ctx.restore();
       }
       ctx.restore();

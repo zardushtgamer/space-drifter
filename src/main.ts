@@ -13,6 +13,7 @@ import { SingularitySystem } from './systems/SingularitySystem';
 import { TrajectoryPredictor } from './systems/TrajectoryPredictor';
 import { RadarDrawer } from './rendering/drawers/RadarDrawer';
 import { DebugDrawer } from './rendering/drawers/DebugDrawer';
+import { KillFxDrawer } from './rendering/drawers/KillFxDrawer';
 import { AchievementSystem } from './systems/AchievementSystem';
 import { showAchievements, showAchievementToast } from './ui/achievements';
 import { GasGiantDrawer } from './rendering/drawers/GasGiantDrawer';
@@ -153,6 +154,7 @@ const renderer = new CanvasRenderer(
     background: [new StarfieldDrawer(config, dimension), new AmbientDrawer(dimension, ambient, 'background')],
     world: [
       new ProjectileDrawer(projectiles, config),
+      new KillFxDrawer(bus, save),
       new DebugDrawer('world', save, registry, physics, player, dimension, timeScale, config),
     ],
     foreground: [

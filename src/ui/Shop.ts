@@ -6,6 +6,7 @@ import {
   EFFECTS,
   findBall,
   itemPrice,
+  KILL_EFFECTS,
   TRAILS,
   type BallSkin,
   type Bundle,
@@ -17,6 +18,7 @@ import { UPGRADES, upgradePrice, type UpgradeDef } from '../config/upgrades';
 import { DEV_TOOLS, devFlag, type DevToolDef, type DevToolId } from '../config/devTools';
 import type { SaveData, Slot } from '../core/SaveData';
 import { drawBall, drawEffect } from '../rendering/effects';
+import { KillFxEngine } from '../rendering/killfx';
 
 const RAINBOW = 'linear-gradient(90deg,#ff4d4d,#ffd166,#4ade80,#5ee7ff,#8b5cf6,#e879f9)';
 
@@ -36,10 +38,19 @@ function trailPreview(t: TrailSkin): string {
       `<div style="width:18px;height:18px;border-radius:50%;background:rgba(96,165,250,${a});border:1.5px solid rgba(191,219,254,${a});box-shadow:0 0 8px rgba(59,130,246,${a})"></div>`;
     return `<div class="flex items-center gap-1">${dot(0.2)}${dot(0.4)}${dot(0.7)}${dot(1)}${dot(0.3)}</div>`;
   }
-  if (t.style === 'equations') {
-    const sym = (s: string, a: number, c: string) =>
-      `<span style="opacity:${a};color:${c};font-family:serif;font-weight:600">${s}</span>`;
-    return `<div class="flex items-center gap-2 text-sm">${sym('π', 0.35, '#f8fafc')}${sym('∫', 0.55, '#fde68a')}${sym('Σ', 0.8, '#93c5fd')}${sym('e^iπ', 1, '#f8fafc')}</div>`;
+  if (t.style === 'glyphs') {
+    const colors = t.colors === 'ball' ? ['#f8fafc'] : t.colors;
+    const glyphs = (t.glyphs ?? ['•']).slice(0, 4);
+    const spans = glyphs
+      .map((g, i) => `<span style="opacity:${0.35 + i * 0.22};color:${cssColor(colors[i % colors.length]!)};font-family:serif;font-weight:600">${g}</span>`)
+      .join('');
+    return `<div class="flex items-center gap-2 text-sm">${spans}</div>`;
+  }
+  if (t.style === 'feathers') {
+    const colors = t.colors === 'ball' ? ['#f97316'] : t.colors;
+    const feather = (i: number) =>
+      `<div style="width:16px;height:6px;border-radius:50%;background:${cssColor(colors[i % colors.length]!)};opacity:${0.35 + i * 0.2};transform:rotate(${-20 + i * 15}deg);box-shadow:0 0 6px ${cssColor(colors[i % colors.length]!)}"></div>`;
+    return `<div class="flex items-center gap-1.5">${[0, 1, 2, 3].map(feather).join('')}</div>`;
   }
   if (t.style === 'cubes') {
     const cube = (a: number, color: string, deg: number) =>
@@ -60,6 +71,12 @@ const PREVIEW_BALL = 14;
 function effectPreview(id: string): string {
   return `<canvas data-effect="${id}" style="width:${PREVIEW_SIZE}px;height:${PREVIEW_SIZE}px"></canvas>`;
 }
+
+/** Live preview that replays the kill effect on a little enemy every second or so. */
+function killPreview(id: string): string {
+  return `<canvas data-kill="${id}" style="width:${PREVIEW_SIZE}px;height:${PREVIEW_SIZE}px"></canvas>`;
+}
+const KILL_PREVIEW_EVERY_MS = 1300;
 
 /** Modal shop for buying and equipping balls, trails and effects. */
 export class Shop {
@@ -168,6 +185,11 @@ export class Shop {
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           ${EFFECTS.map((f) => this.card('effect', f, effectPreview(f.id))).join('')}
         </div>
+        <h3 class="mb-1 mt-8 text-sm font-medium tracking-widest text-white/60">KILL EFFECTS</h3>
+        <p class="mb-3 text-xs text-white/40">Plays wherever you destroy an enemy. Bosses get a bigger version.</p>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          ${KILL_EFFECTS.map((k) => this.card('kill', k, killPreview(k.id))).join('')}
+        </div>
         <h3 class="mb-1 mt-8 text-sm font-medium tracking-widest text-white/60">DEV TOOLS</h3>
         <p class="mb-3 text-xs text-white/40">Free debug overlays for testing. Toggle any combination.</p>
         <div class="grid gap-3 sm:grid-cols-2">
@@ -191,7 +213,40 @@ export class Shop {
       c.width = BALL_PREVIEW_SIZE * dpr;
       c.height = BALL_PREVIEW_SIZE * dpr;
     }
+    const kills = [...(this.root?.querySelectorAll<HTMLCanvasElement>('canvas[data-kill]') ?? [])].map((c, i) => {
+      c.width = PREVIEW_SIZE * dpr;
+      c.height = PREVIEW_SIZE * dpr;
+      // Stagger so the grid doesn't all pop at once.
+      return { canvas: c, engine: new KillFxEngine(), nextAt: i * 180, last: 0 };
+    });
     const tick = (now: number) => {
+      for (const k of kills) {
+        const ctx = k.canvas.getContext('2d');
+        if (!ctx) continue;
+        const mid = PREVIEW_SIZE / 2;
+        const dt = k.last ? Math.min(100, now - k.last) : 0;
+        k.last = now;
+        const sinceSpawn = now - (k.nextAt - KILL_PREVIEW_EVERY_MS);
+        if (now >= k.nextAt) {
+          k.engine.spawn(k.canvas.dataset.kill ?? '', mid, mid, '#ffb020', 11);
+          k.nextAt = now + KILL_PREVIEW_EVERY_MS;
+        }
+        k.engine.update(dt);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, PREVIEW_SIZE, PREVIEW_SIZE);
+        // The "enemy" reappears between bursts.
+        if (sinceSpawn > KILL_PREVIEW_EVERY_MS * 0.6) {
+          ctx.fillStyle = '#ffb020';
+          ctx.beginPath();
+          for (let s = 0; s < 3; s++) {
+            const a = (s / 3) * Math.PI * 2 - Math.PI / 2;
+            ctx.lineTo(mid + Math.cos(a) * 11, mid + Math.sin(a) * 11);
+          }
+          ctx.closePath();
+          ctx.fill();
+        }
+        k.engine.draw(ctx);
+      }
       const ball = findBall(this.save.ball);
       for (const c of balls) {
         const ctx = c.getContext('2d');
@@ -230,6 +285,7 @@ export class Shop {
         const canvas =
           i.slot === 'ball' ? ballPreview(BALLS.find((x) => x.id === i.id)!)
           : i.slot === 'effect' ? effectPreview(i.id)
+          : i.slot === 'kill' ? killPreview(i.id)
           : trailPreview(TRAILS.find((x) => x.id === i.id)!);
         return `<div class="flex h-20 w-24 flex-col items-center justify-center gap-1">
           ${canvas}<div class="text-[10px] uppercase tracking-wider text-white/50">${i.slot}</div></div>`;
@@ -333,14 +389,16 @@ export class Shop {
     const equipped = this.save[slot] === id;
     const owned = this.save.owns(id);
     const affordable = this.save.coins >= price;
+    const bundle = item.bundleOnly ? BUNDLES.find((b) => b.items.some((i) => i.id === id)) : undefined;
     const button =
       equipped ? `<button disabled class="w-full rounded-lg bg-good/20 py-1.5 text-good">Equipped</button>`
       : owned ? `<button data-action="equip" data-slot="${slot}" data-id="${id}" class="w-full rounded-lg bg-white/10 py-1.5 hover:bg-white/20">Equip</button>`
+      : item.bundleOnly ? `<div class="w-full rounded-lg bg-fuchsia-500/15 py-1.5 text-center text-xs text-fuchsia-200">${bundle ? `${bundle.icon} ${bundle.name}` : 'Bundle only'}</div>`
       : `<button data-action="buy" data-slot="${slot}" data-id="${id}" data-price="${price}" ${affordable ? '' : 'disabled'}
            class="w-full rounded-lg py-1.5 font-bold ${affordable ? 'bg-yellow-300 text-space hover:bg-yellow-200' : 'bg-white/5 text-white/30'}">● ${price}</button>`;
     return `
       <div class="flex flex-col items-center gap-3 rounded-xl border ${equipped ? 'border-good/60' : 'border-white/10'} bg-white/5 p-4">
-        <div class="flex ${slot === 'effect' ? 'h-20' : 'h-10'} items-center">${preview}</div>
+        <div class="flex ${slot === 'effect' || slot === 'kill' ? 'h-20' : 'h-10'} items-center">${preview}</div>
         <div class="font-medium">${name}</div>
         ${tag}
         ${button}

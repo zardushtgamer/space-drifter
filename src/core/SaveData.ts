@@ -1,7 +1,17 @@
-import { BALLS, DEFAULT_BALL, DEFAULT_EFFECT, DEFAULT_TRAIL, EFFECTS, TRAILS } from '../config/cosmetics';
+import {
+  BALLS,
+  DEFAULT_BALL,
+  DEFAULT_EFFECT,
+  DEFAULT_KILL,
+  DEFAULT_TRAIL,
+  EFFECTS,
+  KILL_EFFECTS,
+  TRAILS,
+  type CosmeticSlot,
+} from '../config/cosmetics';
 import { computeModifiers, upgradePrice, type Modifiers, type UpgradeDef, type UpgradeId } from '../config/upgrades';
 
-export type Slot = 'ball' | 'trail' | 'effect';
+export type Slot = CosmeticSlot;
 
 export interface SaveState {
   coins: number;
@@ -9,6 +19,8 @@ export interface SaveState {
   ball: string;
   trail: string;
   effect: string;
+  /** Equipped kill effect. */
+  kill: string;
   /** Permanent unlocks, e.g. 'andromeda'. */
   unlocked: string[];
   /** Upgrade id -> level bought. */
@@ -24,7 +36,7 @@ export interface KeyValueStore {
 }
 
 const KEY = 'space-drift:save:v1';
-const FREE = [...BALLS, ...TRAILS, ...EFFECTS].filter((c) => c.price === 0).map((c) => c.id);
+const FREE = [...BALLS, ...TRAILS, ...EFFECTS, ...KILL_EFFECTS].filter((c) => c.price === 0).map((c) => c.id);
 
 /** Coins, owned cosmetics and the equipped loadout, persisted to storage. */
 export class SaveData {
@@ -39,6 +51,7 @@ export class SaveData {
       ball: DEFAULT_BALL,
       trail: DEFAULT_TRAIL,
       effect: DEFAULT_EFFECT,
+      kill: DEFAULT_KILL,
       unlocked: [],
       upgrades: {},
       counters: {},
@@ -53,6 +66,7 @@ export class SaveData {
           ball: parsed.ball ?? DEFAULT_BALL,
           trail: parsed.trail ?? DEFAULT_TRAIL,
           effect: parsed.effect ?? DEFAULT_EFFECT,
+          kill: parsed.kill ?? DEFAULT_KILL,
           unlocked: Array.isArray(parsed.unlocked) ? parsed.unlocked : [],
           upgrades: typeof parsed.upgrades === 'object' && parsed.upgrades ? parsed.upgrades : {},
           counters: typeof parsed.counters === 'object' && parsed.counters ? parsed.counters : {},
@@ -77,6 +91,10 @@ export class SaveData {
 
   get effect(): string {
     return this.state.effect;
+  }
+
+  get kill(): string {
+    return this.state.kill;
   }
 
   owns(id: string): boolean {

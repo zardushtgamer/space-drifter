@@ -10,6 +10,8 @@ export interface ShopItem {
   readonly name: string;
   readonly price: number;
   readonly theme?: DimensionId;
+  /** Only obtainable through a bundle (not sold on its own). */
+  readonly bundleOnly?: boolean;
 }
 
 export interface BallSkin extends ShopItem {
@@ -19,19 +21,31 @@ export interface BallSkin extends ShopItem {
   /** Optional surface pattern, drawn in `color` over the fill. */
   readonly pattern?: { readonly kind: BallPattern; readonly color: string };
   /** Replaces the plain sphere look (the physics shape stays a circle). */
-  readonly shape?: 'tesseract';
+  readonly shape?: 'tesseract' | 'glitch';
 }
 
-export type BallPattern = 'stripes' | 'spots' | 'swirl' | 'core' | 'eight' | 'geometry';
+export type BallPattern = 'stripes' | 'spots' | 'swirl' | 'core' | 'eight' | 'geometry' | 'runes';
 
-/** 'afterimage' draws ghost copies of the ball itself, behind and ahead of you. */
-export type TrailStyle = 'ribbon' | 'sparks' | 'afterimage' | 'cubes' | 'equations' | 'none';
+/**
+ * 'afterimage' draws ghost copies of the ball; 'glyphs' writes `glyphs` along the path;
+ * 'cubes' drops spinning wireframe cubes; 'feathers' sheds glowing feathers.
+ */
+export type TrailStyle = 'ribbon' | 'sparks' | 'afterimage' | 'cubes' | 'glyphs' | 'feathers' | 'none';
 
 export interface TrailSkin extends ShopItem {
   readonly style: TrailStyle;
   /** Gradient from tail to head; 'ball' matches the equipped ball. */
   readonly colors: readonly CosmeticColor[] | 'ball';
+  /** Text written along a 'glyphs' trail, in order. */
+  readonly glyphs?: readonly string[];
 }
+
+/** Symbols written along the Chalk Equations trail. */
+export const MATH_SYMBOLS: readonly string[] = [
+  'π', '∫', 'Σ', '√2', 'e^iπ', 'φ', '∞', 'x²', '∂', 'Δ', 'θ', 'dx', 'i', '∇', 'λ', 'n!', 'sin', 'log',
+];
+const RUNES: readonly string[] = ['ᚠ', 'ᚢ', 'ᚦ', 'ᚨ', 'ᚱ', 'ᚲ', 'ᚷ', 'ᚹ', 'ᚺ', 'ᚾ', 'ᛁ', 'ᛃ', 'ᛇ', 'ᛈ', 'ᛉ', 'ᛊ', 'ᛏ', 'ᛒ'];
+const BITS: readonly string[] = ['0', '1', '1', '0', '1', '0', '0', '1', '0x', '1', '0', '1'];
 
 export const BALLS: readonly BallSkin[] = [
   { id: 'cyan', name: 'Drifter', price: 0, fill: '#5ee7ff' },
@@ -59,9 +73,13 @@ export const BALLS: readonly BallSkin[] = [
   { id: 'jupiter', name: 'Jupiter', price: 250, fill: '#d97706', pattern: { kind: 'stripes', color: '#fde68a' } },
   { id: 'moon', name: 'Moon', price: 200, fill: '#9ca3af', pattern: { kind: 'spots', color: '#6b7280' } },
   { id: 'candy', name: 'Candy Swirl', price: 300, fill: '#f472b6', pattern: { kind: 'swirl', color: '#ffffff' } },
+  { id: 'plasma', name: 'Plasma Core', price: 500, fill: '#5b21b6', ring: '#c4b5fd', pattern: { kind: 'core', color: '#f0abfc' } },
+  // Bundle collection
   { id: 'unitcircle', name: 'Unit Circle', price: 700, fill: '#1e293b', ring: '#fde68a', pattern: { kind: 'geometry', color: '#f8fafc' } },
   { id: 'tesseract', name: 'Tesseract', price: 900, fill: '#0e1a2b', ring: '#5ee7ff', shape: 'tesseract' },
-  { id: 'plasma', name: 'Plasma Core', price: 500, fill: '#5b21b6', ring: '#c4b5fd', pattern: { kind: 'core', color: '#f0abfc' } },
+  { id: 'phoenix', name: 'Phoenix Egg', price: 650, fill: '#7c2d12', ring: '#fbbf24', pattern: { kind: 'core', color: '#fde047' } },
+  { id: 'glitch', name: 'Glitch', price: 750, fill: '#0f172a', ring: '#22d3ee', shape: 'glitch' },
+  { id: 'arcane', name: 'Arcane Orb', price: 750, fill: '#2e1065', ring: '#c084fc', pattern: { kind: 'runes', color: '#e9d5ff' } },
 ];
 
 export const TRAILS: readonly TrailSkin[] = [
@@ -72,8 +90,6 @@ export const TRAILS: readonly TrailSkin[] = [
   { id: 'sparks', name: 'Sparks', price: 180, style: 'sparks', colors: ['#ffd166', '#ffffff'] },
   { id: 'rainbow', name: 'Rainbow', price: 400, style: 'ribbon', colors: ['rainbow'] },
   { id: 'afterimage', name: 'Afterimage', price: 700, style: 'afterimage', colors: ['#60a5fa'] },
-  { id: 'equationtrail', name: 'Chalk Equations', price: 600, style: 'equations', colors: ['#f8fafc', '#fde68a', '#93c5fd'] },
-  { id: 'cubetrail', name: 'Hypercube Wake', price: 600, style: 'cubes', colors: ['#e879f9', '#5ee7ff'] },
   // Dimension collection
   { id: 'stardust', name: 'Stardust', price: 250, style: 'ribbon', colors: ['#7c3aed', '#e879f9', '#ffd6f5'], theme: 'andromeda' },
   { id: 'cinders', name: 'Cinders', price: 260, style: 'sparks', colors: ['#991b1b', '#f97316', '#fde047'], theme: 'ember' },
@@ -85,21 +101,25 @@ export const TRAILS: readonly TrailSkin[] = [
   { id: 'solarwind', name: 'Solar Wind', price: 380, style: 'sparks', colors: ['#f97316', '#fde047', '#ffffff'], theme: 'solar' },
   { id: 'bubbles', name: 'Bubbles', price: 450, style: 'sparks', colors: ['#2dd4bf', '#ccfbf1', '#fda4af'], theme: 'reef' },
   { id: 'dust', name: 'Rockdust', price: 350, style: 'sparks', colors: ['#4a3f38', '#a8876b', '#e7cfb4'], theme: 'caverns' },
+  // Bundle collection
+  { id: 'equationtrail', name: 'Chalk Equations', price: 600, style: 'glyphs', colors: ['#f8fafc', '#fde68a', '#93c5fd'], glyphs: MATH_SYMBOLS },
+  { id: 'cubetrail', name: 'Hypercube Wake', price: 600, style: 'cubes', colors: ['#e879f9', '#5ee7ff'] },
+  { id: 'feathers', name: 'Phoenix Feathers', price: 550, style: 'feathers', colors: ['#dc2626', '#f97316', '#fde047'] },
+  { id: 'datastream', name: 'Data Stream', price: 550, style: 'glyphs', colors: ['#22d3ee', '#4ade80', '#a5f3fc'], glyphs: BITS },
+  { id: 'runetrail', name: 'Rune Trail', price: 550, style: 'glyphs', colors: ['#c084fc', '#e9d5ff', '#f0abfc'], glyphs: RUNES },
 ];
 
 /** Animated decoration around the ball, like a profile-picture frame. */
 export type EffectSkin = ShopItem;
 
 export const EFFECTS: readonly EffectSkin[] = [
-  // Ids share one "owned" list with balls and trails, so they must be unique across all three.
+  // Ids share one "owned" list with every other slot, so they must be unique across all of them.
   { id: 'plain', name: 'None', price: 0 },
   { id: 'halo', name: 'Halo', price: 100 },
   { id: 'orbit', name: 'Moons', price: 140 },
   { id: 'flame', name: 'Blue Flame', price: 220 },
   { id: 'storm', name: 'Storm', price: 260 },
   { id: 'blackhole', name: 'Black Hole', price: 400 },
-  { id: 'hypercube', name: 'Hypercube', price: 1000 },
-  { id: 'sacredgeometry', name: 'Sacred Geometry', price: 950 },
   // Dimension collection
   { id: 'galaxy', name: 'Galaxy', price: 450, theme: 'andromeda' },
   { id: 'inferno', name: 'Inferno', price: 450, theme: 'ember' },
@@ -111,7 +131,31 @@ export const EFFECTS: readonly EffectSkin[] = [
   { id: 'spores', name: 'Spore Cloud', price: 650, theme: 'toxic' },
   { id: 'corona', name: 'Corona', price: 650, theme: 'solar' },
   { id: 'fishschool', name: 'Fish School', price: 800, theme: 'reef' },
+  // Bundle collection
+  { id: 'hypercube', name: 'Hypercube', price: 1000 },
+  { id: 'sacredgeometry', name: 'Sacred Geometry', price: 950 },
+  { id: 'phoenixwings', name: 'Wings of Fire', price: 900 },
+  { id: 'hologrid', name: 'Hologram', price: 900 },
+  { id: 'magiccircle', name: 'Magic Circle', price: 900 },
 ];
+
+/** Played where an enemy dies. */
+export type KillEffectSkin = ShopItem;
+
+export const KILL_EFFECTS: readonly KillEffectSkin[] = [
+  { id: 'kfx-pop', name: 'Pop', price: 0 },
+  { id: 'kfx-shatter', name: 'Shatter', price: 250 },
+  { id: 'kfx-confetti', name: 'Confetti', price: 300 },
+  { id: 'kfx-firework', name: 'Firework', price: 400 },
+  { id: 'kfx-zap', name: 'Zap', price: 450 },
+  { id: 'kfx-vortex', name: 'Vortex', price: 500 },
+  // Bundle exclusives
+  { id: 'kfx-phoenix', name: 'Phoenix Burst', price: 500, bundleOnly: true },
+  { id: 'kfx-pixel', name: 'Pixelate', price: 500, bundleOnly: true },
+  { id: 'kfx-soul', name: 'Soul Release', price: 500, bundleOnly: true },
+];
+
+export type CosmeticSlot = 'ball' | 'trail' | 'effect' | 'kill';
 
 /** A set of cosmetics sold together at a discount on whatever you don't own yet. */
 export interface Bundle {
@@ -119,7 +163,7 @@ export interface Bundle {
   readonly name: string;
   readonly icon: string;
   readonly description: string;
-  readonly items: ReadonlyArray<{ readonly slot: 'ball' | 'trail' | 'effect'; readonly id: string }>;
+  readonly items: ReadonlyArray<{ readonly slot: CosmeticSlot; readonly id: string }>;
   /** Fraction of the unowned items' total price you pay. */
   readonly priceFactor: number;
 }
@@ -149,16 +193,53 @@ export const BUNDLES: readonly Bundle[] = [
     ],
     priceFactor: 0.7,
   },
+  {
+    id: 'bundle-phoenix',
+    name: 'Phoenix Bundle',
+    icon: '🔥',
+    description: 'Rise from the ashes: ember egg, burning feathers, wings of fire',
+    items: [
+      { slot: 'ball', id: 'phoenix' },
+      { slot: 'trail', id: 'feathers' },
+      { slot: 'effect', id: 'phoenixwings' },
+      { slot: 'kill', id: 'kfx-phoenix' },
+    ],
+    priceFactor: 0.7,
+  },
+  {
+    id: 'bundle-glitch',
+    name: 'Glitch Bundle',
+    icon: '💾',
+    description: 'Corrupted ball, binary data stream, hologram, and enemies that pixelate',
+    items: [
+      { slot: 'ball', id: 'glitch' },
+      { slot: 'trail', id: 'datastream' },
+      { slot: 'effect', id: 'hologrid' },
+      { slot: 'kill', id: 'kfx-pixel' },
+    ],
+    priceFactor: 0.7,
+  },
+  {
+    id: 'bundle-arcane',
+    name: 'Arcane Bundle',
+    icon: '🔮',
+    description: 'Runes, a summoning circle, and souls released from the fallen',
+    items: [
+      { slot: 'ball', id: 'arcane' },
+      { slot: 'trail', id: 'runetrail' },
+      { slot: 'effect', id: 'magiccircle' },
+      { slot: 'kill', id: 'kfx-soul' },
+    ],
+    priceFactor: 0.7,
+  },
 ];
 
-/** Symbols written along the Chalk Equations trail. */
-export const MATH_SYMBOLS: readonly string[] = [
-  'π', '∫', 'Σ', '√2', 'e^iπ', 'φ', '∞', 'x²', '∂', 'Δ', 'θ', 'dx', 'i', '∇', 'λ', 'n!', 'sin', 'log',
-];
+export function catalogFor(slot: CosmeticSlot): readonly ShopItem[] {
+  return slot === 'ball' ? BALLS : slot === 'trail' ? TRAILS : slot === 'effect' ? EFFECTS : KILL_EFFECTS;
+}
 
-export function itemPrice(slot: 'ball' | 'trail' | 'effect', id: string): number {
-  const list: readonly ShopItem[] = slot === 'ball' ? BALLS : slot === 'trail' ? TRAILS : EFFECTS;
-  return list.find((i) => i.id === id)?.price ?? 0;
+export function itemPrice(slot: CosmeticSlot, id: string): number {
+  return catalogFor(slot).find((i) => i.id === id)?.price ?? 0;
 }
 
 /** Bundle price given what you already own (you only pay for the rest). */
@@ -170,6 +251,7 @@ export function bundlePrice(b: Bundle, owns: (id: string) => boolean): number {
 export const DEFAULT_BALL = 'cyan';
 export const DEFAULT_TRAIL = 'classic';
 export const DEFAULT_EFFECT = 'plain';
+export const DEFAULT_KILL = 'kfx-pop';
 
 export function findBall(id: string): BallSkin {
   return BALLS.find((b) => b.id === id) ?? BALLS[0]!;

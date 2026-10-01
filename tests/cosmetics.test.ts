@@ -5,19 +5,47 @@ import {
   bundlePrice,
   DEFAULT_BALL,
   DEFAULT_EFFECT,
+  DEFAULT_KILL,
   DEFAULT_TRAIL,
   EFFECTS,
   itemPrice,
+  KILL_EFFECTS,
   TRAILS,
 } from '../src/config/cosmetics';
+import { KILL_FX_IDS, KillFxEngine } from '../src/rendering/killfx';
 import { TESSERACT } from '../src/rendering/tesseract';
 import { DIMENSION_IDS } from '../src/config/dimensions';
 import { EFFECT_IDS } from '../src/rendering/effects';
 
 describe('cosmetics catalog', () => {
-  it('uses ids that are unique across balls, trails and effects (they share one owned list)', () => {
-    const ids = [...BALLS, ...TRAILS, ...EFFECTS].map((c) => c.id);
+  it('uses ids that are unique across every slot (they share one owned list)', () => {
+    const ids = [...BALLS, ...TRAILS, ...EFFECTS, ...KILL_EFFECTS].map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('has a particle spawner for every kill effect', () => {
+    for (const k of KILL_EFFECTS) expect(KILL_FX_IDS).toContain(k.id);
+  });
+
+  it('makes every bundle-only item obtainable from some bundle', () => {
+    const bundled = new Set(BUNDLES.flatMap((b) => b.items.map((i) => i.id)));
+    for (const item of [...BALLS, ...TRAILS, ...EFFECTS, ...KILL_EFFECTS]) {
+      if (item.bundleOnly) expect(bundled.has(item.id)).toBe(true);
+    }
+  });
+
+  it('gives every glyph trail some glyphs', () => {
+    for (const t of TRAILS) if (t.style === 'glyphs') expect(t.glyphs?.length).toBeGreaterThan(0);
+  });
+
+  it('spawns and fully clears kill particles', () => {
+    for (const id of KILL_FX_IDS) {
+      const fx = new KillFxEngine();
+      fx.spawn(id, 0, 0, '#fff', 12, () => 0.5);
+      expect(fx.count).toBeGreaterThan(0);
+      for (let i = 0; i < 200; i++) fx.update(50);
+      expect(fx.count).toBe(0);
+    }
   });
 
   it('has an animation for every effect except None', () => {
@@ -54,5 +82,6 @@ describe('cosmetics catalog', () => {
     expect(BALLS.find((b) => b.id === DEFAULT_BALL)?.price).toBe(0);
     expect(TRAILS.find((t) => t.id === DEFAULT_TRAIL)?.price).toBe(0);
     expect(EFFECTS.find((e) => e.id === DEFAULT_EFFECT)?.price).toBe(0);
+    expect(KILL_EFFECTS.find((k) => k.id === DEFAULT_KILL)?.price).toBe(0);
   });
 });

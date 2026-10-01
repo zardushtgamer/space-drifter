@@ -1,21 +1,9 @@
-import { PALETTE, type GameConfig } from '../../config/gameConfig';
+import { ENEMY_COLORS as COLORS } from '../../config/enemyColors';
+import type { GameConfig } from '../../config/gameConfig';
 import { Enemy, type EnemyType } from '../../entities/Enemy';
 import type { Entity } from '../../entities/Entity';
 import type { IDrawer, RenderView } from '../IRenderer';
 import { drawHealthBar, isFlashing } from './flash';
-
-const COLORS: Readonly<Record<EnemyType, string>> = {
-  chaser: PALETTE.enemy,
-  brute: PALETTE.brute,
-  dasher: '#ff5a1f',
-  splitter: '#7dd3fc',
-  sniper: '#a78bfa',
-  phantom: '#6ee7b7',
-  swarmer: '#f9a8d4',
-  bloater: '#84cc16',
-  orbiter: '#fde047',
-  jelly: '#fda4af',
-};
 
 /** Polygon sides per type; chasers/dashers point where they're heading. */
 const SIDES: Readonly<Record<EnemyType, number>> = {

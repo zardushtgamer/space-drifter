@@ -17,9 +17,9 @@ export interface EventMap {
   'boss:damaged': HpPayload;
   'player:launched': { force: number };
   'obstacle:hit': { id: number };
-  'enemy:killed': { id: number; score: number };
+  'enemy:killed': { id: number; score: number; x: number; y: number; color: string; radius: number };
   'boss:spawned': { level: number };
-  'boss:killed': { level: number };
+  'boss:killed': { level: number; x: number; y: number };
   'round:cleared': { round: number };
   'level:up': { level: number };
   'drag:start': { from: Vec2 };

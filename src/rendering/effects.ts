@@ -13,6 +13,10 @@ export function drawBall(
   glowBlur: number,
   flash = false,
 ): void {
+  if (ball.shape === 'glitch') {
+    drawGlitchBall(ctx, ball, x, y, r, timeMs, glowBlur, flash);
+    return;
+  }
   if (ball.shape === 'tesseract') {
     // A glowing core inside a hypercube that keeps turning itself inside out.
     ctx.save();
@@ -168,6 +172,27 @@ function drawPattern(
       ctx.beginPath();
       ctx.arc(px, py, lw * 1.8, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'runes': {
+      // A ring of runes turning inside the orb, around a softly pulsing glyph.
+      const runes = ['ᚠ', 'ᚱ', 'ᚦ', 'ᛉ', 'ᚨ', 'ᛟ'];
+      ctx.fillStyle = color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `700 ${Math.max(6, Math.round(r * 0.42))}px serif`;
+      for (let i = 0; i < runes.length; i++) {
+        const a = t / 1500 + (i / runes.length) * Math.PI * 2;
+        ctx.globalAlpha = 0.85;
+        ctx.save();
+        ctx.translate(Math.cos(a) * r * 0.62, Math.sin(a) * r * 0.62);
+        ctx.rotate(a + Math.PI / 2);
+        ctx.fillText(runes[i]!, 0, 0);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t / 300);
+      ctx.font = `700 ${Math.max(6, Math.round(r * 0.6))}px serif`;
+      ctx.fillText('ᛟ', 0, 0);
       break;
     }
     case 'eight': {
@@ -733,7 +758,177 @@ const sacredgeometry: EffectFn = (ctx, r, t, layer) => {
   ctx.restore();
 };
 
+/**
+ * Glitch ball: chromatic-aberration ghosts in red and cyan, plus corrupted
+ * horizontal slices that jump around in bursts.
+ */
+function drawGlitchBall(
+  ctx: CanvasRenderingContext2D,
+  ball: BallSkin,
+  x: number,
+  y: number,
+  r: number,
+  t: number,
+  glowBlur: number,
+  flash: boolean,
+): void {
+  const bucket = Math.floor(t / 90);
+  const rng = mulberry32(bucket);
+  const glitching = rng() < 0.4;
+  const split = glitching ? r * 0.25 : r * 0.08;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const [dx, color] of [
+    [-split, 'rgba(255, 0, 80, 0.7)'],
+    [split, 'rgba(0, 240, 255, 0.7)'],
+  ] as const) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x + dx, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = ball.ring ?? '#22d3ee';
+  ctx.shadowBlur = glowBlur;
+  ctx.fillStyle = flash ? '#ffffff' : resolveColor(ball.fill, t);
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.88, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = ball.ring ?? '#22d3ee';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Scanlines.
+  ctx.clip();
+  ctx.fillStyle = 'rgba(34, 211, 238, 0.18)';
+  for (let sy = -r; sy < r; sy += 4) ctx.fillRect(x - r, y + sy + ((t / 40) % 4), r * 2, 1);
+  ctx.restore();
+
+  if (!glitching) return;
+  // Corrupted slices, offset sideways.
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    const sy = y - r + rng() * r * 2;
+    const h = 1 + rng() * r * 0.25;
+    const sx = (rng() - 0.5) * r * 1.2;
+    ctx.fillStyle = rng() < 0.5 ? 'rgba(0, 240, 255, 0.8)' : 'rgba(255, 0, 160, 0.8)';
+    ctx.fillRect(x - r * 0.9 + sx, sy, r * 1.8, h);
+  }
+  ctx.restore();
+}
+
+/** Phoenix: two feathered wings of fire flapping behind the ball. */
+const phoenixwings: EffectFn = (ctx, r, t, layer) => {
+  if (layer !== 'under') return;
+  const flap = Math.sin(t / 180) * 0.35;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(side, 1);
+    ctx.rotate(-0.25 + flap);
+    for (let f = 0; f < 7; f++) {
+      const a = -Math.PI / 2 + 0.15 + f * 0.24;
+      const len = r * (2.2 + f * 0.25) * (1 - f * 0.04);
+      const g = ctx.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+      g.addColorStop(0, 'rgba(253, 224, 71, 0.9)');
+      g.addColorStop(0.5, 'rgba(249, 115, 22, 0.7)');
+      g.addColorStop(1, 'rgba(220, 38, 38, 0)');
+      ctx.fillStyle = g;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.beginPath();
+      ctx.ellipse(len / 2 + r * 0.6, 0, len / 2, r * 0.28, 0, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+};
+
+/** Glitch: a holographic wire sphere with a rising scan band. */
+const hologrid: EffectFn = (ctx, r, t, layer) => {
+  if (layer !== 'over') return;
+  const R = r * 2.1;
+  const spin = t / 1800;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(34, 211, 238, 0.55)';
+  ctx.lineWidth = 1;
+  ctx.shadowColor = '#22d3ee';
+  ctx.shadowBlur = 6;
+  // Longitudes: ellipses squashed by the spin angle.
+  for (let i = 0; i < 6; i++) {
+    const a = spin + (i / 6) * Math.PI;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, Math.abs(Math.cos(a)) * R, R, 0, 0, TAU);
+    ctx.stroke();
+  }
+  // Latitudes.
+  for (let k = -2; k <= 2; k++) {
+    const yy = (k / 3) * R;
+    const w = Math.sqrt(Math.max(0, R * R - yy * yy));
+    ctx.beginPath();
+    ctx.ellipse(0, yy, w, w * 0.18, 0, 0, TAU);
+    ctx.stroke();
+  }
+  // Scan band sweeping upward.
+  const sy = R - ((t / 6) % (R * 2));
+  ctx.fillStyle = 'rgba(74, 222, 128, 0.25)';
+  ctx.fillRect(-R, sy - 3, R * 2, 6);
+  ctx.restore();
+};
+
+/** Arcane: a two-ring summoning circle with runes, around a pentagram. */
+const magiccircle: EffectFn = (ctx, r, t, layer) => {
+  if (layer !== 'under') return;
+  const R = r * 2.4;
+  ctx.save();
+  ctx.shadowColor = '#c084fc';
+  ctx.shadowBlur = 10;
+  ctx.strokeStyle = 'rgba(192, 132, 252, 0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.save();
+  ctx.rotate(t / 4000);
+  ctx.beginPath();
+  ctx.arc(0, 0, R, 0, TAU);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.82, 0, TAU);
+  ctx.stroke();
+  // Rune band between the two rings.
+  const runes = 'ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃᛇᛈᛉᛊᛏᛒ';
+  ctx.fillStyle = 'rgba(233, 213, 255, 0.9)';
+  ctx.font = `600 ${Math.max(7, Math.round(r * 0.32))}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < runes.length; i++) {
+    const a = (i / runes.length) * TAU;
+    ctx.save();
+    ctx.rotate(a);
+    ctx.translate(0, -R * 0.91);
+    ctx.fillText(runes[i]!, 0, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+  // Pentagram turning the other way.
+  ctx.rotate(-t / 3000);
+  ctx.strokeStyle = 'rgba(240, 171, 252, 0.85)';
+  ctx.beginPath();
+  for (let i = 0; i <= 5; i++) {
+    const a = -Math.PI / 2 + ((i * 2) / 5) * TAU;
+    ctx.lineTo(Math.cos(a) * R * 0.78, Math.sin(a) * R * 0.78);
+  }
+  ctx.stroke();
+  ctx.restore();
+};
+
 const EFFECT_FNS: Readonly<Record<string, EffectFn>> = {
+  phoenixwings,
+  hologrid,
+  magiccircle,
   sacredgeometry,
   hypercube,
   spores,

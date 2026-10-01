@@ -14,7 +14,7 @@ describe('RunLevels', () => {
     const onLevel = vi.fn();
     bus.on('level:up', onLevel);
     const levels = new RunLevels(bus, rewards);
-    bus.emit('enemy:killed', { id: 1, score: xpToNext(1) });
+    bus.emit('enemy:killed', { id: 1, score: xpToNext(1), x: 0, y: 0, color: '#fff', radius: 10 });
     expect(levels.level).toBe(2);
     expect(levels.pending).toBe(1);
     expect(onLevel).toHaveBeenCalledWith({ level: 2 });

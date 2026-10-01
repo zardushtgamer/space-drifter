@@ -1,6 +1,7 @@
 import type { GameConfig } from '../../config/gameConfig';
 import { Boss } from '../../entities/Boss';
-import { Enemy, type EnemyType } from '../../entities/Enemy';
+import { ENEMY_COLORS } from '../../config/enemyColors';
+import { Enemy } from '../../entities/Enemy';
 import type { EntityRegistry } from '../../entities/EntityRegistry';
 import { Obstacle } from '../../entities/Obstacle';
 import type { Player } from '../../entities/Player';
@@ -9,18 +10,6 @@ import type { ILayerDrawer, RenderView } from '../IRenderer';
 
 const FONT = '"Space Grotesk", ui-sans-serif, system-ui, sans-serif';
 
-const ENEMY_COLORS: Readonly<Record<EnemyType, string>> = {
-  chaser: '#ffb020',
-  brute: '#c084fc',
-  dasher: '#ff5a1f',
-  splitter: '#7dd3fc',
-  sniper: '#a78bfa',
-  phantom: '#6ee7b7',
-  swarmer: '#f9a8d4',
-  bloater: '#84cc16',
-  orbiter: '#fde047',
-  jelly: '#fda4af',
-};
 
 /** Minimap range (world px from the player to the minimap's edge). */
 const MINIMAP_RANGE = 3000;

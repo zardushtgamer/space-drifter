@@ -1,4 +1,5 @@
 import Matter from 'matter-js';
+import { ENEMY_COLORS } from '../config/enemyColors';
 import type { GameConfig } from '../config/gameConfig';
 import { computeModifiers, type Modifiers } from '../config/upgrades';
 
@@ -214,12 +215,19 @@ export class CombatSystem implements ISystem {
       this.stats.bossesDefeated++;
       this.player.health.heal(c.healPerBoss);
       this.stats.highestBossKilled = Math.max(this.stats.highestBossKilled, entity.level);
-      this.bus.emit('boss:killed', { level: entity.level });
+      this.bus.emit('boss:killed', { level: entity.level, x: entity.body.position.x, y: entity.body.position.y });
     } else {
       this.stats.score += entity.stats.score;
       this.stats.kills++;
       this.player.health.heal(c.healPerKill + this.mods().healPerKill);
-      this.bus.emit('enemy:killed', { id: entity.id, score: entity.stats.score });
+      this.bus.emit('enemy:killed', {
+        id: entity.id,
+        score: entity.stats.score,
+        x: entity.body.position.x,
+        y: entity.body.position.y,
+        color: ENEMY_COLORS[entity.type],
+        radius: entity.body.circleRadius ?? 12,
+      });
     }
   }
 
