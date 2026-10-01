@@ -22,10 +22,10 @@ export interface BallSkin extends ShopItem {
   readonly shape?: 'tesseract';
 }
 
-export type BallPattern = 'stripes' | 'spots' | 'swirl' | 'core' | 'eight';
+export type BallPattern = 'stripes' | 'spots' | 'swirl' | 'core' | 'eight' | 'geometry';
 
 /** 'afterimage' draws ghost copies of the ball itself, behind and ahead of you. */
-export type TrailStyle = 'ribbon' | 'sparks' | 'afterimage' | 'cubes' | 'none';
+export type TrailStyle = 'ribbon' | 'sparks' | 'afterimage' | 'cubes' | 'equations' | 'none';
 
 export interface TrailSkin extends ShopItem {
   readonly style: TrailStyle;
@@ -59,6 +59,7 @@ export const BALLS: readonly BallSkin[] = [
   { id: 'jupiter', name: 'Jupiter', price: 250, fill: '#d97706', pattern: { kind: 'stripes', color: '#fde68a' } },
   { id: 'moon', name: 'Moon', price: 200, fill: '#9ca3af', pattern: { kind: 'spots', color: '#6b7280' } },
   { id: 'candy', name: 'Candy Swirl', price: 300, fill: '#f472b6', pattern: { kind: 'swirl', color: '#ffffff' } },
+  { id: 'unitcircle', name: 'Unit Circle', price: 700, fill: '#1e293b', ring: '#fde68a', pattern: { kind: 'geometry', color: '#f8fafc' } },
   { id: 'tesseract', name: 'Tesseract', price: 900, fill: '#0e1a2b', ring: '#5ee7ff', shape: 'tesseract' },
   { id: 'plasma', name: 'Plasma Core', price: 500, fill: '#5b21b6', ring: '#c4b5fd', pattern: { kind: 'core', color: '#f0abfc' } },
 ];
@@ -71,6 +72,7 @@ export const TRAILS: readonly TrailSkin[] = [
   { id: 'sparks', name: 'Sparks', price: 180, style: 'sparks', colors: ['#ffd166', '#ffffff'] },
   { id: 'rainbow', name: 'Rainbow', price: 400, style: 'ribbon', colors: ['rainbow'] },
   { id: 'afterimage', name: 'Afterimage', price: 700, style: 'afterimage', colors: ['#60a5fa'] },
+  { id: 'equationtrail', name: 'Chalk Equations', price: 600, style: 'equations', colors: ['#f8fafc', '#fde68a', '#93c5fd'] },
   { id: 'cubetrail', name: 'Hypercube Wake', price: 600, style: 'cubes', colors: ['#e879f9', '#5ee7ff'] },
   // Dimension collection
   { id: 'stardust', name: 'Stardust', price: 250, style: 'ribbon', colors: ['#7c3aed', '#e879f9', '#ffd6f5'], theme: 'andromeda' },
@@ -97,6 +99,7 @@ export const EFFECTS: readonly EffectSkin[] = [
   { id: 'storm', name: 'Storm', price: 260 },
   { id: 'blackhole', name: 'Black Hole', price: 400 },
   { id: 'hypercube', name: 'Hypercube', price: 1000 },
+  { id: 'sacredgeometry', name: 'Sacred Geometry', price: 950 },
   // Dimension collection
   { id: 'galaxy', name: 'Galaxy', price: 450, theme: 'andromeda' },
   { id: 'inferno', name: 'Inferno', price: 450, theme: 'ember' },
@@ -134,6 +137,23 @@ export const BUNDLES: readonly Bundle[] = [
     ],
     priceFactor: 0.7,
   },
+  {
+    id: 'bundle-math',
+    name: 'Math Bundle',
+    icon: '📐',
+    description: 'Chalkboard geometry, golden spirals and famous equations',
+    items: [
+      { slot: 'ball', id: 'unitcircle' },
+      { slot: 'trail', id: 'equationtrail' },
+      { slot: 'effect', id: 'sacredgeometry' },
+    ],
+    priceFactor: 0.7,
+  },
+];
+
+/** Symbols written along the Chalk Equations trail. */
+export const MATH_SYMBOLS: readonly string[] = [
+  'π', '∫', 'Σ', '√2', 'e^iπ', 'φ', '∞', 'x²', '∂', 'Δ', 'θ', 'dx', 'i', '∇', 'λ', 'n!', 'sin', 'log',
 ];
 
 export function itemPrice(slot: 'ball' | 'trail' | 'effect', id: string): number {

@@ -113,6 +113,63 @@ function drawPattern(
       ctx.fillRect(-r, -r, r * 2, r * 2);
       break;
     }
+    case 'geometry': {
+      // Unit circle: axes, a rotating radius with its angle arc, the point's sin/cos
+      // drop-lines, and an inscribed triangle and square turning opposite ways.
+      const lw = Math.max(0.8, r * 0.05);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = lw;
+      ctx.globalAlpha = 0.45;
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.lineTo(r, 0);
+      ctx.moveTo(0, -r);
+      ctx.lineTo(0, r);
+      ctx.stroke();
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      ctx.stroke();
+      const poly = (sides: number, angle: number, rr: number, stroke: string) => {
+        ctx.strokeStyle = stroke;
+        ctx.beginPath();
+        for (let i = 0; i <= sides; i++) {
+          const a = angle + (i / sides) * Math.PI * 2;
+          ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        ctx.stroke();
+      };
+      ctx.globalAlpha = 0.55;
+      poly(3, t / 1400, r * 0.8, '#fde68a');
+      poly(4, -t / 1900, r * 0.8, '#93c5fd');
+      // Radius, angle arc and the point (cos θ, sin θ).
+      const th = t / 900;
+      const px = Math.cos(th) * r * 0.8;
+      const py = -Math.sin(th) * r * 0.8;
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+      ctx.setLineDash([lw * 2, lw * 2]);
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px, 0);
+      ctx.moveTo(px, py);
+      ctx.lineTo(0, py);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.25, 0, -(th % (Math.PI * 2)), true);
+      ctx.stroke();
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.arc(px, py, lw * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
     case 'eight': {
       ctx.beginPath();
       ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2);
@@ -602,7 +659,82 @@ const hypercube: EffectFn = (ctx, r, t, layer) => {
   );
 };
 
+const PHI = (1 + Math.sqrt(5)) / 2;
+const FAMOUS = ['a²+b²=c²', 'e^iπ+1=0', 'E=mc²', 'φ=1.618…', 'A=πr²', '∑1/n²=π²/6'];
+
+/**
+ * Math bundle: chalk-white hexagram and circles, a golden spiral built from
+ * quarter arcs growing by φ, and famous equations orbiting the ball.
+ */
+const sacredgeometry: EffectFn = (ctx, r, t, layer) => {
+  if (layer === 'under') {
+    ctx.save();
+    ctx.rotate(t / 6000);
+    ctx.strokeStyle = 'rgba(248, 250, 252, 0.55)';
+    ctx.lineWidth = 1.2;
+    // Circle + hexagram.
+    const R = r * 2.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, TAU);
+    ctx.stroke();
+    for (const off of [0, Math.PI / 3]) {
+      ctx.beginPath();
+      for (let i = 0; i <= 3; i++) {
+        const a = off + (i / 3) * TAU - Math.PI / 2;
+        ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+      }
+      ctx.stroke();
+    }
+    // Flower-of-life petals: six circles through the center.
+    ctx.strokeStyle = 'rgba(147, 197, 253, 0.3)';
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * TAU;
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * R * 0.5, Math.sin(a) * R * 0.5, R * 0.5, 0, TAU);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Golden spiral: quarter-circle arcs whose radii grow by φ, turning the other way.
+    ctx.save();
+    ctx.rotate(-t / 3000);
+    ctx.strokeStyle = 'rgba(253, 230, 138, 0.85)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#fde68a';
+    ctx.shadowBlur = 8;
+    let size = r * 0.12;
+    let cx = 0;
+    let cy = 0;
+    ctx.beginPath();
+    for (let i = 0; i < 7; i++) {
+      const start = (i * Math.PI) / 2;
+      ctx.arc(cx, cy, size, start, start + Math.PI / 2);
+      // Shift the next arc's center so the spiral stays continuous.
+      const next = size * PHI;
+      const end = start + Math.PI / 2;
+      cx += Math.cos(end) * (size - next);
+      cy += Math.sin(end) * (size - next);
+      size = next;
+    }
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  // Orbiting equations, in chalk.
+  ctx.save();
+  ctx.font = `600 ${Math.max(8, Math.round(r * 0.42))}px "Space Grotesk", serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < FAMOUS.length; i++) {
+    const a = t / 2600 + (i / FAMOUS.length) * TAU;
+    ctx.fillStyle = i % 2 === 0 ? 'rgba(248, 250, 252, 0.85)' : 'rgba(253, 230, 138, 0.85)';
+    ctx.fillText(FAMOUS[i]!, Math.cos(a) * r * 3.1, Math.sin(a) * r * 3.1);
+  }
+  ctx.restore();
+};
+
 const EFFECT_FNS: Readonly<Record<string, EffectFn>> = {
+  sacredgeometry,
   hypercube,
   spores,
   corona,

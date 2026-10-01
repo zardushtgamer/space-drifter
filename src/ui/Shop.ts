@@ -36,6 +36,11 @@ function trailPreview(t: TrailSkin): string {
       `<div style="width:18px;height:18px;border-radius:50%;background:rgba(96,165,250,${a});border:1.5px solid rgba(191,219,254,${a});box-shadow:0 0 8px rgba(59,130,246,${a})"></div>`;
     return `<div class="flex items-center gap-1">${dot(0.2)}${dot(0.4)}${dot(0.7)}${dot(1)}${dot(0.3)}</div>`;
   }
+  if (t.style === 'equations') {
+    const sym = (s: string, a: number, c: string) =>
+      `<span style="opacity:${a};color:${c};font-family:serif;font-weight:600">${s}</span>`;
+    return `<div class="flex items-center gap-2 text-sm">${sym('π', 0.35, '#f8fafc')}${sym('∫', 0.55, '#fde68a')}${sym('Σ', 0.8, '#93c5fd')}${sym('e^iπ', 1, '#f8fafc')}</div>`;
+  }
   if (t.style === 'cubes') {
     const cube = (a: number, color: string, deg: number) =>
       `<div style="width:14px;height:14px;border:1.5px solid ${color};opacity:${a};transform:rotate(${deg}deg);box-shadow:0 0 6px ${color}"></div>`;

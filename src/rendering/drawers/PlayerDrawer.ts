@@ -1,4 +1,4 @@
-import { findBall, findTrail, resolveColor, type BallSkin, type CosmeticColor } from '../../config/cosmetics';
+import { findBall, findTrail, MATH_SYMBOLS, resolveColor, type BallSkin, type CosmeticColor } from '../../config/cosmetics';
 import type { GameConfig } from '../../config/gameConfig';
 import { singularityStats } from '../../config/upgrades';
 import type { SingularitySystem } from '../../systems/SingularitySystem';
@@ -19,6 +19,8 @@ import { isFlashing } from './flash';
 export class PlayerDrawer implements IDrawer {
   /** Recent positions, oldest first. */
   private readonly trail: Vec2[] = [];
+  /** Total points ever pushed, so each trail point keeps a stable identity as the buffer shifts. */
+  private pushes = 0;
 
   constructor(
     private readonly config: GameConfig,
@@ -33,6 +35,7 @@ export class PlayerDrawer implements IDrawer {
     const ball = findBall(this.save.ball);
 
     this.trail.push({ x: position.x, y: position.y });
+    this.pushes++;
     if (this.trail.length > this.config.effects.trailLength) this.trail.shift();
     const afterimage = findTrail(this.save.trail).style === 'afterimage';
     if (afterimage) this.drawAfterimages(ctx, ball, r, timeMs, entity.body.velocity, 'behind');
@@ -155,6 +158,30 @@ export class PlayerDrawer implements IDrawer {
     const skin = findTrail(this.save.trail);
     const n = this.trail.length;
     if (skin.style === 'none' || n < 2) return;
+    if (skin.style === 'equations') {
+      // Chalk symbols dropped every few points. Each is keyed to the frame it was
+      // dropped on, so it keeps its symbol and tilt as the trail scrolls.
+      const chalk = skin.colors === 'ball' ? ['#f8fafc'] : skin.colors;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (let i = 0; i < n - 1; i++) {
+        const id = this.pushes - (n - 1 - i);
+        if (id % 5 !== 0) continue;
+        const p = this.trail[i]!;
+        const age = 1 - i / (n - 1);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(Math.sin(id * 1.7) * 0.4);
+        ctx.globalAlpha = (1 - age) * 0.9;
+        ctx.fillStyle = resolveColor(chalk[(id / 5) % chalk.length]!, timeMs);
+        ctx.font = `600 ${Math.round(radius * (1.3 - age * 0.5))}px "Space Grotesk", serif`;
+        ctx.fillText(MATH_SYMBOLS[(id / 5) % MATH_SYMBOLS.length]!, 0, 0);
+        ctx.restore();
+      }
+      ctx.restore();
+      return;
+    }
     if (skin.style === 'cubes') {
       // Spinning wireframe cubes dropped along the path, alternating colors, shrinking as they fade.
       const cubeColors = skin.colors === 'ball' ? ['#5ee7ff'] : skin.colors;
